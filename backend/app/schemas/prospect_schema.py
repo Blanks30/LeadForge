@@ -60,21 +60,10 @@ class ProspectSummarySchema(ProspectBase):
     id: int
     icp_id: int
     lead_score: int = Field(ge=0, le=100, default=0)
+    score_breakdown: dict[str, int] | None = None
     status: str = Field(default="PENDING")
     researched_at: datetime | None = None
     created_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class ProspectDetailSchema(ProspectSummarySchema):
-    """Detailed prospect view including score breakdown, sources, and evidence."""
-
-    score_breakdown_json: str | None = None
-    score_breakdown: dict[str, int] | None = None
-    web_sources: list[WebSourceSchema] = []
-    evidence_items: list[EvidenceItemSchema] = []
-    updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -109,4 +98,23 @@ class ProspectDetailSchema(ProspectSummarySchema):
                 "web_sources": getattr(data, "web_sources", []),
                 "evidence_items": getattr(data, "evidence_items", []),
             }
+        elif "score_breakdown" not in data and "score_breakdown_json" in data:
+            raw = data.get("score_breakdown_json")
+            if isinstance(raw, str):
+                try:
+                    data["score_breakdown"] = json.loads(raw)
+                except (json.JSONDecodeError, TypeError):
+                    data["score_breakdown"] = None
         return data
+
+
+class ProspectDetailSchema(ProspectSummarySchema):
+    """Detailed prospect view including score breakdown, sources, and evidence."""
+
+    score_breakdown_json: str | None = None
+    web_sources: list[WebSourceSchema] = []
+    evidence_items: list[EvidenceItemSchema] = []
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+

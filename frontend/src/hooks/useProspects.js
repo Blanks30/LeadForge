@@ -90,6 +90,9 @@ export function useProspects() {
       }
     } catch (err) {
       setError(`Research failed for prospect #${id}: ${err.message}`);
+      setProspects((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, status: 'FAILED' } : p))
+      );
     } finally {
       setResearchingId(null);
     }

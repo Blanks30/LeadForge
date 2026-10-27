@@ -4,22 +4,108 @@
 
 @layer base {
   body {
-    @apply bg-slate-950 text-slate-100 font-sans;
+    @apply bg-obsidian-950 text-slate-100 font-sans antialiased selection:bg-brand-500 selection:text-white min-h-full;
+    background-color: #070709;
+    background-image: 
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(249, 115, 22, 0.08), transparent 60%),
+      radial-gradient(ellipse 50% 30% at 85% 15%, rgba(217, 119, 6, 0.04), transparent 50%);
+    background-attachment: fixed;
   }
 }
 
-/* Custom scrollbars */
+@layer utilities {
+  /* Solid, opaque surfaces (NO glassmorphism, NO backdrop-blur) */
+  .solid-panel,
+  .glass-panel {
+    @apply bg-obsidian-900 border border-obsidian-border shadow-surface;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .solid-card,
+  .glass-card {
+    @apply bg-obsidian-850 border border-obsidian-border hover:border-brand-500/40 transition-all duration-200;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .solid-elevated {
+    @apply bg-obsidian-800 border border-obsidian-border shadow-surface-elevated;
+  }
+
+  /* Accessible focus rings with brand orange accent */
+  .focus-ring {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-obsidian-950;
+  }
+}
+
+/* Atmospheric warm studio backdrop mimicking high-end workspace photography */
+.studio-backdrop {
+  background: 
+    radial-gradient(circle at 18% 38%, rgba(220, 140, 75, 0.20) 0%, transparent 48%),
+    radial-gradient(circle at 85% 20%, rgba(135, 100, 68, 0.15) 0%, transparent 42%),
+    radial-gradient(circle at 50% 90%, rgba(20, 17, 15, 0.95) 0%, #070709 100%),
+    #0a0a0d;
+}
+
+/* 2.5D Monitor Perspective Container */
+.perspective-container {
+  perspective: 1600px;
+}
+
+.monitor-tilted {
+  transform: rotateY(-11deg) rotateX(2.5deg) translateZ(0);
+  transform-style: preserve-3d;
+  box-shadow: 
+    -25px 35px 70px -15px rgba(0, 0, 0, 0.85),
+    0 15px 30px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 1024px) {
+  .monitor-tilted {
+    transform: none !important;
+  }
+}
+
+/* Metallic stand gradient */
+.aluminum-stand {
+  background: linear-gradient(135deg, #71717a 0%, #3f3f46 45%, #a1a1aa 55%, #27272a 100%);
+  box-shadow: 0 15px 25px -5px rgba(0, 0, 0, 0.7);
+}
+
+/* Desk reflection strip */
+.desk-reflection {
+  background: linear-gradient(180deg, rgba(22, 19, 16, 0.85) 0%, rgba(12, 11, 10, 0.98) 100%);
+  border-top: 1px solid rgba(255, 215, 180, 0.08);
+}
+
+/* Polished warm charcoal scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
+  background: #070709;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.4);
+  background: #272736;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.6);
+  background: #f97316;
 }
+
+/* Reduced-motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .monitor-tilted {
+    transform: none !important;
+  }
+}
+

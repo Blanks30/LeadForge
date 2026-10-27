@@ -12,49 +12,60 @@ export function Header({
   const exportUrl = api.getExportUrl();
 
   return (
-    <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur-md sticky top-0 z-40">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+    <header className="border-b border-[#272736] bg-[#0A0A0D] sticky top-0 z-40 transition-colors shadow-md">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2.5 sm:py-3.5 flex flex-wrap items-center justify-between gap-3 sm:gap-4">
         {/* Logo and Tagline */}
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-emerald-400 p-0.5 shadow-lg shadow-indigo-500/20 flex items-center justify-center">
-            <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
-              <Flame className="w-5 h-5 text-indigo-400" />
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <a href="#hero" className="flex items-center gap-2 sm:gap-2.5 group">
+            <div className="w-8 h-8 rounded-lg bg-[#14141A] border border-[#272736] flex items-center justify-center text-brand-500 shadow-sm group-hover:scale-105 transition-transform flex-shrink-0">
+              <svg className="w-5 h-5 stroke-current" fill="none" strokeLinecap="round" strokeWidth="2.2" viewBox="0 0 28 28">
+                <path d="M5 14C5 9.02944 9.02944 5 14 5C18.9706 5 23 9.02944 23 14" />
+                <path d="M9 14C9 11.2386 11.2386 9 14 9C16.7614 9 19 11.2386 19 14" />
+                <path d="M13 14C13 13.4477 13.4477 13 14 13C14.5523 13 15 13.4477 15 14C15 17 12 19 12 22" />
+                <path d="M17 17C17 19.5 15.5 23 14 23" />
+              </svg>
             </div>
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold text-white tracking-tight">LeadForge</h1>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                MVP
-              </span>
+            <div>
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h1 className="text-sm sm:text-base font-bold font-display text-white tracking-tight">LeadForge</h1>
+                <span className="text-[10px] uppercase font-mono font-bold tracking-wider px-1.5 sm:px-2 py-0.2 sm:py-0.5 rounded bg-brand-500/10 text-brand-400 border border-brand-500/30">
+                  MVP
+                </span>
+              </div>
+              <p className="text-[11px] sm:text-xs text-zinc-400 truncate max-w-[210px] sm:max-w-none">
+                Evidence-First Sales Intelligence<span className="hidden sm:inline"> • Zero Hallucination</span>
+              </p>
             </div>
-            <p className="text-xs text-slate-400">
-              Evidence-First Sales Intelligence • Zero Hallucination
-            </p>
-          </div>
+          </a>
         </div>
 
         {/* Global Action Toolbar */}
-        <div className="flex items-center gap-2.5">
-          {/* Health Indicator */}
+        <div className="flex items-center flex-wrap gap-1.5 sm:gap-2.5">
+          {/* Health Indicator with Live Pulse Dot */}
           <div
-            className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
+            className={`hidden sm:inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
               apiHealthy
-                ? 'bg-emerald-950/40 text-emerald-400 border-emerald-800/40'
-                : 'bg-red-950/40 text-red-400 border-red-800/40'
+                ? 'bg-[#062E20] text-emerald-400 border-emerald-600/50 shadow-sm'
+                : 'bg-[#2A0E0E] text-rose-400 border-rose-800/50'
             }`}
             title={apiHealthy ? 'Backend API connected' : 'Backend API disconnected'}
           >
-            <Activity className="w-3 h-3" />
-            <span>{apiHealthy ? 'API Active' : 'API Offline'}</span>
+            <span className="relative flex h-2 w-2">
+              {apiHealthy && (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              )}
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${apiHealthy ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
+            </span>
+            <span className="font-medium text-[11px] font-mono">{apiHealthy ? 'API Active' : 'API Offline'}</span>
           </div>
 
           {/* ICP Configuration Trigger */}
           <button
             onClick={onOpenIcp}
-            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700/80 text-xs font-semibold text-slate-200 border border-slate-700 flex items-center gap-1.5 transition-colors shadow-sm"
+            className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#14141A] hover:bg-[#1B1B22] text-xs font-medium text-zinc-200 border border-[#272736] hover:border-brand-500/40 flex items-center gap-1.5 transition-all shadow-sm focus-ring"
+            aria-label="Configure Ideal Customer Profile"
           >
-            <Target className="w-3.5 h-3.5 text-indigo-400" />
+            <Target className="w-3.5 h-3.5 text-brand-400 flex-shrink-0" />
             <span>Target ICP</span>
           </button>
 
@@ -62,21 +73,35 @@ export function Header({
           <button
             onClick={onSeedDemo}
             disabled={seeding}
-            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700/80 text-xs font-semibold text-slate-200 border border-slate-700 flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-50"
+            className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#14141A] hover:bg-[#1B1B22] text-xs font-medium text-zinc-200 border border-[#272736] hover:border-brand-500/40 flex items-center gap-1.5 transition-all shadow-sm disabled:opacity-50 focus-ring"
             title="Seed 10 target Indian SMB SaaS companies"
+            aria-label="Seed 10 demo prospects"
           >
-            <Database className={`w-3.5 h-3.5 text-indigo-400 ${seeding ? 'animate-spin' : ''}`} />
-            <span>{seeding ? 'Seeding...' : 'Seed 10 Prospects'}</span>
+            <Database className={`w-3.5 h-3.5 text-brand-400 flex-shrink-0 ${seeding ? 'animate-spin' : ''}`} />
+            <span>
+              {seeding ? (
+                'Seeding...'
+              ) : (
+                <>
+                  <span className="hidden sm:inline">Seed 10 Prospects</span>
+                  <span className="sm:hidden">Seed (10)</span>
+                </>
+              )}
+            </span>
           </button>
 
           {/* Export to CSV */}
           <a
             href={exportUrl}
             download="leadforge_prospects.csv"
-            className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white shadow-md shadow-indigo-600/20 flex items-center gap-1.5 transition-all"
+            className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-brand-500 hover:bg-brand-600 text-xs font-semibold text-white shadow-sm hover:shadow-md flex items-center gap-1.5 transition-all focus-ring active:scale-95"
+            aria-label="Export prospects to CSV"
           >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export CSV</span>
+            <Download className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>
+              <span className="hidden sm:inline">Export CSV</span>
+              <span className="sm:hidden">Export</span>
+            </span>
           </a>
         </div>
       </div>

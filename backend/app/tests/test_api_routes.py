@@ -120,3 +120,82 @@ def test_nonexistent_prospect_returns_404():
     with TestClient(app) as client:
         res = client.get("/api/prospects/99999")
         assert res.status_code == 404
+        post_res = client.post("/api/prospects/99999/research")
+        assert post_res.status_code == 404
+
+
+def test_multi_prospect_independent_research():
+    """Verify multiple prospects can be researched independently without artificial limits."""
+    with TestClient(app) as client:
+        # Seed prospects to ensure standard test catalog
+        client.post("/api/prospects/seed")
+
+        # Fetch list and verify at least 3 prospects exist
+        list_res = client.get("/api/prospects")
+        assert list_res.status_code == 200
+        prospects = list_res.json()
+        assert len(prospects) >= 3
+
+        test_domains = ["khatabook.com", "mydukaan.io", "shiprocket.in"]
+        researched_results = []
+
+        for domain in test_domains:
+            prospect = next(p for p in prospects if p["domain"] == domain)
+            res = client.post(f"/api/prospects/{prospect['id']}/research")
+            assert res.status_code == 200
+            data = res.json()
+            assert data["status"] == "ANALYZED"
+            assert data["domain"] == domain
+            assert data["lead_score"] > 0
+            assert data["score_breakdown"] is not None
+            assert len(data["evidence_items"]) > 0
+            researched_results.append(data)
+
+        # Verify results retain distinct identities, scores, and domains
+        domains_seen = {r["domain"] for r in researched_results}
+        assert domains_seen == set(test_domains)
+
+        # Verify GET /api/prospects preserves score_breakdown on summary objects
+        summary_res = client.get("/api/prospects")
+        assert summary_res.status_code == 200
+        all_summaries = summary_res.json()
+        for domain in test_domains:
+            summary_item = next(p for p in all_summaries if p["domain"] == domain)
+            assert summary_item["status"] == "ANALYZED"
+            assert summary_item["score_breakdown"] is not None
+            assert "total" in summary_item["score_breakdown"]
+
+
+def test_research_failure_persists_status_and_allows_retry(monkeypatch):
+    """Verify that a crawler failure persists status=FAILED, returns 502, and can be retried."""
+    from app.services import research_service, tinyfish_client
+
+    with TestClient(app) as client:
+        client.post("/api/prospects/seed")
+        list_res = client.get("/api/prospects?search=Vyapar")
+        vyapar_id = list_res.json()[0]["id"]
+
+        # 1. Simulate crawler returning None (upstream crawl failure)
+        class FailingCrawler(tinyfish_client.TinyFishClientBase):
+            async def crawl_prospect(self, domain: str, website_url: str):
+                return None
+
+        monkeypatch.setattr(research_service, "get_tinyfish_client", lambda: FailingCrawler())
+
+        fail_res = client.post(f"/api/prospects/{vyapar_id}/research")
+        assert fail_res.status_code == 502
+        assert "failed" in fail_res.json()["detail"].lower()
+
+        # Check that prospect status in DB is now FAILED, not indefinitely PENDING
+        detail_res = client.get(f"/api/prospects/{vyapar_id}")
+        assert detail_res.status_code == 200
+        assert detail_res.json()["status"] == "FAILED"
+
+        # 2. Restore normal crawler (mock) and verify retry succeeds
+        monkeypatch.undo()
+        retry_res = client.post(f"/api/prospects/{vyapar_id}/research")
+        assert retry_res.status_code == 200
+        retried_data = retry_res.json()
+        assert retried_data["status"] == "ANALYZED"
+        assert retried_data["lead_score"] > 0
+

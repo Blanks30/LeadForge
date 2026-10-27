@@ -100,6 +100,15 @@ async def trigger_prospect_research(
             detail=f"Prospect {prospect_id} not found",
         )
 
+    if prospect.status == "FAILED":
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=(
+                f"Web crawling and evidence extraction failed for "
+                f"{prospect.company_name} ({prospect.domain})."
+            ),
+        )
+
     return ProspectDetailSchema.model_validate(prospect)
 
 
