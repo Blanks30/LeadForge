@@ -39,6 +39,7 @@ _ISOLATED_TEST_DB_URL = f"sqlite+aiosqlite:///{_ISOLATED_TEST_DB_PATH.as_posix()
 
 # Enforce environment variable for settings instantiation
 os.environ["DATABASE_URL"] = _ISOLATED_TEST_DB_URL
+os.environ["USE_MOCK_APIS"] = "true"
 
 # Import application settings and verify URL isolation
 from app.core.config import settings
@@ -52,6 +53,7 @@ from app.db.session import (
 
 # Overwrite in-memory settings to guarantee isolation even if config was previously imported
 settings.DATABASE_URL = _ISOLATED_TEST_DB_URL
+settings.USE_MOCK_APIS = True
 
 
 @pytest.fixture(autouse=True)

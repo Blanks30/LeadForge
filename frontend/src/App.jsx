@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { useProspects } from './hooks/useProspects';
 import { HeroLanding } from './components/HeroLanding';
 import { Header } from './components/Header';
@@ -6,6 +6,8 @@ import { ProspectList } from './components/ProspectList';
 import { EvidenceModal } from './components/EvidenceModal';
 import { OutreachModal } from './components/OutreachModal';
 import { IcpConfigModal } from './components/IcpConfigModal';
+import { AddProspectModal } from './components/AddProspectModal';
+import { WebSearchModal } from './components/WebSearchModal';
 import { Target, AlertTriangle } from 'lucide-react';
 
 export default function App() {
@@ -32,11 +34,17 @@ export default function App() {
     handleOpenDraft,
     showIcpModal,
     setShowIcpModal,
+    showAddModal,
+    setShowAddModal,
+    handleProspectAdded,
     evidenceProspect,
     setEvidenceProspect,
     outreachProspect,
     setOutreachProspect,
   } = useProspects();
+
+  const [showWebSearchModal, setShowWebSearchModal] = useState(false);
+  const [addCompanyInitialData, setAddCompanyInitialData] = useState(null);
 
   const consoleRef = useRef(null);
 
@@ -44,6 +52,12 @@ export default function App() {
     if (consoleRef.current) {
       consoleRef.current.scrollIntoView({ behavior: 'smooth' });
     }
+  };
+
+  const handleAddCandidateFromSearch = (candidate) => {
+    setShowWebSearchModal(false);
+    setAddCompanyInitialData(candidate);
+    setShowAddModal(true);
   };
 
   return (
@@ -63,6 +77,11 @@ export default function App() {
           healthStatus={healthStatus}
           onRetryHealth={checkHealth}
           onOpenIcp={() => setShowIcpModal(true)}
+          onOpenAddCompany={() => {
+            setAddCompanyInitialData(null);
+            setShowAddModal(true);
+          }}
+          onOpenWebSearch={() => setShowWebSearchModal(true)}
           onSeedDemo={handleSeed}
           seeding={seeding}
           prospectCount={prospects.length}
@@ -144,6 +163,7 @@ export default function App() {
           researchingId={researchingId}
           onSeedDemo={handleSeed}
           seeding={seeding}
+          onOpenAddCompany={() => setShowAddModal(true)}
         />
       </main>
 
@@ -153,6 +173,27 @@ export default function App() {
       </footer>
 
       {/* Modals */}
+      {showWebSearchModal && (
+        <WebSearchModal
+          isOpen={showWebSearchModal}
+          onClose={() => setShowWebSearchModal(false)}
+          onAddAsCompany={handleAddCandidateFromSearch}
+          existingProspects={prospects}
+        />
+      )}
+
+      {showAddModal && (
+        <AddProspectModal
+          isOpen={showAddModal}
+          onClose={() => {
+            setShowAddModal(false);
+            setAddCompanyInitialData(null);
+          }}
+          onProspectAdded={handleProspectAdded}
+          initialData={addCompanyInitialData}
+        />
+      )}
+
       {showIcpModal && (
         <IcpConfigModal
           icp={icp}

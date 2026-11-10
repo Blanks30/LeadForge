@@ -16,7 +16,7 @@ def test_health_check_returns_ok():
         data = response.json()
         assert data["status"] == "ok"
         assert data["db"] is True
-        assert data["api_mode"] in ("MOCK", "LIVE")
+        assert data["api_mode"] in ("MOCK", "LIVE", "LIVE_VERIFIED", "LIVE_CONFIGURED")
         assert "live_connected" in data
 
 
@@ -31,7 +31,12 @@ def test_health_check_degraded_when_db_down():
             data = response.json()
             assert data["status"] == "degraded"
             assert data["db"] is False
-            assert data["api_mode"] in ("MOCK", "LIVE")
+            assert data["api_mode"] in (
+                "MOCK",
+                "LIVE",
+                "LIVE_VERIFIED",
+                "LIVE_CONFIGURED",
+            )
 
 
 def test_unknown_route_returns_404():

@@ -93,6 +93,7 @@ LeadForge/
 │   │   │   ├── __init__.py
 │   │   │   ├── routes_icp.py         # ICP management endpoints
 │   │   │   ├── routes_prospects.py   # Prospect CRUD, research trigger
+│   │   │   ├── routes_search.py      # Tavily general-purpose web search
 │   │   │   ├── routes_outreach.py    # Email draft generation
 │   │   │   └── routes_export.py      # CSV export generation
 │   │   ├── db/
@@ -104,15 +105,19 @@ LeadForge/
 │   │   │   ├── __init__.py
 │   │   │   ├── icp_schema.py         # Pydantic models for ICP
 │   │   │   ├── prospect_schema.py    # Pydantic models for prospects & evidence
+│   │   │   ├── search_schema.py      # Pydantic models for web search
 │   │   │   └── outreach_schema.py    # Pydantic models for drafts
 │   │   ├── services/
 │   │   │   ├── __init__.py
+│   │   │   ├── tavily_client.py      # Tavily Search API wrapper + mock fallback
 │   │   │   ├── tinyfish_client.py    # TinyFish API wrapper + mock fallback
 │   │   │   ├── gemini_client.py      # Gemini API wrapper + schema enforcement
 │   │   │   ├── evidence_extractor.py # Fact / Inference / Unknown extraction
 │   │   │   └── scoring_engine.py     # 100-point rubric calculation
 │   │   └── tests/
 │   │       ├── conftest.py
+│   │       ├── test_custom_prospects.py
+│   │       ├── test_tavily_search.py
 │   │       ├── test_scoring.py
 │   │       ├── test_evidence.py
 │   │       └── test_api_routes.py
@@ -133,6 +138,8 @@ LeadForge/
         │   └── client.js             # Fetch wrapper communicating with FastAPI
         ├── components/
         │   ├── Header.jsx            # Top navigation bar
+        │   ├── WebSearchModal.jsx    # General-purpose web search modal
+        │   ├── AddProspectModal.jsx  # Custom company addition modal
         │   ├── IcpConfigModal.jsx    # ICP settings modal
         │   ├── ProspectList.jsx      # Prospect data table / cards
         │   ├── ProspectRow.jsx       # Individual prospect row
@@ -161,10 +168,13 @@ All frontend requests target the `/api` prefix on the backend. No external calls
 | `GET` | `/api/icp` | Retrieve active ICP | None | `IcpResponse` |
 | `POST` | `/api/icp` | Update active ICP | `IcpUpdateSchema` | `IcpResponse` |
 | `GET` | `/api/prospects` | List all researched prospects | None (query params: `min_score`, `search`) | `List[ProspectSummarySchema]` |
+| `POST` | `/api/prospects` | Create a new custom prospect company | `ProspectCreateSchema` | `ProspectSummarySchema` |
 | `POST` | `/api/prospects/seed` | Seed the 10 target Indian SaaS companies | None | `List[ProspectSummarySchema]` |
 | `POST` | `/api/prospects/{id}/research` | Trigger web crawl & extraction | None | `ProspectDetailSchema` |
 | `GET` | `/api/prospects/{id}` | Full prospect detail with evidence | None | `ProspectDetailSchema` |
 | `POST` | `/api/prospects/{id}/draft` | Generate evidence-grounded outreach | `DraftOptionsSchema` | `OutreachDraftSchema` |
+| `POST` | `/api/search` | General-purpose web search via Tavily | `SearchRequest` | `SearchResponse` |
+| `GET` | `/api/search` | Lightweight web search query | Query param: `q` | `SearchResponse` |
 | `GET` | `/api/export/csv` | Export all qualified prospects to CSV | None | CSV file attachment |
 
 ---

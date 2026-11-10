@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Prospect
+from app.db.models import IcpProfile, Prospect
 from app.db.seed_data import seed_initial_data
 from app.db.session import get_db
 from app.schemas.outreach_schema import (
@@ -14,8 +14,10 @@ from app.schemas.outreach_schema import (
     OutreachDraftSchema,
 )
 from app.schemas.prospect_schema import (
+    ProspectCreateSchema,
     ProspectDetailSchema,
     ProspectSummarySchema,
+    extract_and_normalize_domain,
 )
 from app.services.outreach_service import generate_outreach_draft
 from app.services.research_service import execute_prospect_research
@@ -56,6 +58,54 @@ async def list_prospects(
     prospects = result.scalars().all()
 
     return [ProspectSummarySchema.model_validate(p) for p in prospects]
+
+
+@router.post(
+    "",
+    response_model=ProspectSummarySchema,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_prospect(
+    payload: ProspectCreateSchema,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ProspectSummarySchema:
+    """Create a new custom prospect company for research and evaluation."""
+    try:
+        domain = extract_and_normalize_domain(payload.website_url)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+
+    # Reject duplicate domains
+    query = select(Prospect).where(Prospect.domain == domain)
+    result = await db.execute(query)
+    existing = result.scalar_one_or_none()
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A prospect with domain '{domain}' already exists.",
+        )
+
+    # Bind to active ICP profile if one exists
+    icp_query = select(IcpProfile.id).order_by(IcpProfile.id.asc()).limit(1)
+    icp_result = await db.execute(icp_query)
+    icp_id = icp_result.scalar_one_or_none() or 1
+
+    new_prospect = Prospect(
+        company_name=payload.company_name.strip(),
+        website_url=payload.website_url.strip(),
+        domain=domain,
+        icp_id=icp_id,
+        status="PENDING",
+        lead_score=0,
+    )
+    db.add(new_prospect)
+    await db.commit()
+    await db.refresh(new_prospect)
+
+    return ProspectSummarySchema.model_validate(new_prospect)
 
 
 @router.post("/seed", response_model=list[ProspectSummarySchema])

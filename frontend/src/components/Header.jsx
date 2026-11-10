@@ -1,5 +1,5 @@
 import React from 'react';
-import { Target, Download, Database, RefreshCw } from 'lucide-react';
+import { Target, Download, Database, RefreshCw, Plus, Globe } from 'lucide-react';
 import { api } from '../api/client';
 
 export function Header({
@@ -7,6 +7,8 @@ export function Header({
   healthStatus,
   onRetryHealth,
   onOpenIcp,
+  onOpenAddCompany,
+  onOpenWebSearch,
   onSeedDemo,
   seeding,
   prospectCount,
@@ -135,6 +137,34 @@ export function Header({
           >
             <Target className="w-3.5 h-3.5 text-brand-400 flex-shrink-0" />
             <span>Target ICP</span>
+          </button>
+
+          {/* General-Purpose Web Search */}
+          <button
+            onClick={onOpenWebSearch}
+            className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#14141A] hover:bg-[#1B1B22] text-xs font-medium text-cyan-300 border border-cyan-800/40 hover:border-cyan-500/60 flex items-center gap-1.5 transition-all shadow-sm focus-ring"
+            title="Search the web with Tavily"
+            aria-label="Search the web"
+          >
+            <Globe className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
+            <span>
+              <span className="hidden sm:inline">Web Search</span>
+              <span className="sm:hidden">Search</span>
+            </span>
+          </button>
+
+          {/* Add Custom Company */}
+          <button
+            onClick={onOpenAddCompany}
+            className="px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#14141A] hover:bg-[#1B1B22] text-xs font-medium text-zinc-200 border border-[#272736] hover:border-brand-500/40 flex items-center gap-1.5 transition-all shadow-sm focus-ring"
+            title="Add any custom company for AI research"
+            aria-label="Add custom company"
+          >
+            <Plus className="w-3.5 h-3.5 text-brand-400 flex-shrink-0" />
+            <span>
+              <span className="hidden sm:inline">Add Company</span>
+              <span className="sm:hidden">Add</span>
+            </span>
           </button>
 
           {/* Seed Demo Prospects */}

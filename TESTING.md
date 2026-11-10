@@ -89,6 +89,36 @@ Tests the mathematical validity and logic of the 100-point rubric engine:
   * *Input:* Synthetic prospect claim beginning with `=cmd|' /C calc'!A0` or `+2+5`.
   * *Expected Output:* Output CSV serializes cell prefixed with `'` (e.g., `'=cmd...`), neutralizing formula execution.
 
+### 3.5 Custom Prospect Addition & Pipeline Integration Tests (`backend/app/tests/test_custom_prospects.py`)
+* **Scenario TCP-1: Successful Custom Prospect Creation**
+  * `POST /api/prospects` with valid name, website URL, and optional description returns `201 Created`, status `PENDING`, lead score 0, and normalized domain.
+* **Scenario TCP-2: Validation Guards**
+  * Missing/blank company name returns `422 Unprocessable Entity`.
+  * Invalid or malformed URL returns `422 Unprocessable Entity`.
+  * Unsupported protocol (e.g. `ftp://`) returns `422 Unprocessable Entity`.
+* **Scenario TCP-3: Duplicate Domain Conflict Rejection**
+  * Attempting to add an existing domain (or its `www.` variant) returns `409 Conflict`.
+* **Scenario TCP-4: Pipeline & Research Integration**
+  * Newly created prospect appears in `GET /api/prospects` listing.
+  * `POST /api/prospects/{id}/research` successfully processes the custom company, extracts grounded evidence, and computes rubric score.
+  * Crawl failures set status `FAILED`, preserve the prospect record, and support subsequent retry.
+* **Scenario TCP-5: Catalog Integrity**
+  * Adding custom prospects preserves all 10 initial seeded catalog prospects intact.
+
+### 3.6 General-Purpose Web Search Tests (`backend/app/tests/test_tavily_search.py`)
+* **Scenario TS-GEN1: Non-SaaS Unrestricted Query Execution**
+  * General topics (e.g. "Best open-source AI agents", "Cybersecurity trends") return structured results without keyword injection.
+* **Scenario TS-GEN2: Company Search & Discovery**
+  * Company-specific queries (e.g. "Linways official website", "Competitors of Zoho") return relevant titles, URLs, and candidate company names.
+* **Scenario TS-GEN3: Exact Query Verbatim Preservation**
+  * Verifies that the exact user query is transmitted to Tavily without appending industry, geography, or SaaS tokens.
+* **Scenario TS-GEN4: Error Handling & Resilience**
+  * Missing `TAVILY_API_KEY` in live mode returns `503 Service Unavailable` with actionable guidance.
+  * Invalid credentials return `401 Unauthorized`.
+  * Rate limits return `429 Too Many Requests`.
+  * Network timeouts return `502 Bad Gateway`.
+  * Blank queries return `422 Unprocessable Entity`.
+
 ---
 
 ## 4. Frontend Component Tests (`frontend/src/tests/`)

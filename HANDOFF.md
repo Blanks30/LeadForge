@@ -1,14 +1,14 @@
 # LeadForge — Verification & Production Readiness Handoff Report
 
 **Project:** LeadForge — Evidence-First Sales Intelligence for B2B SaaS<br/>
-**Document Version:** 5.0.0 (Milestones 1–4 Completed, Dual Database & Zero-Cost Architecture Verified)<br/>
+**Document Version:** 5.2.0 (Milestones 1–4 Completed, Dual Database, Custom Prospect Ingestion & Tavily Web Search Verified)<br/>
 **Status:** Production Ready, Tested, and Verified Across All Layers
 
 ---
 
 ## 1. Executive Summary
 
-LeadForge has completed **Milestones 1, 2, 3, 4, and Zero-Cost Production Readiness**. Both the FastAPI backend and Vite/React frontend are fully operational, thoroughly tested, and packaged for deployment targeting **₹0 recurring monthly cost**. The codebase includes 110 automated backend tests across unit, integration, dual-database compilation, persistence, security, and end-to-end suites. Ruff lint and formatting checks pass with 0 errors across 40 files, and the frontend production build compiles cleanly in ~2.3 seconds.
+LeadForge has completed **Milestones 1, 2, 3, 4, Custom Prospect Ingestion, Tavily General-Purpose Web Search, and Zero-Cost Production Readiness**. Both the FastAPI backend and Vite/React frontend are fully operational, thoroughly tested, and packaged for deployment targeting **₹0 recurring monthly cost**. The codebase includes 129 automated backend tests across unit, integration, dual-database compilation, custom company addition, general-purpose web search, persistence, security, and end-to-end suites. Ruff lint and formatting checks pass with 0 errors across 45 files, and the frontend production build compiles cleanly in ~2.5 seconds.
 
 ---
 
@@ -17,6 +17,8 @@ LeadForge has completed **Milestones 1, 2, 3, 4, and Zero-Cost Production Readin
 | Component / Workflow | Status | Details & Verification Level |
 |---|---|---|
 | **Pipeline Step 1: Prospect Loading & Seeding** | **Implemented** | Idempotent seeding of 10 Indian SaaS prospects. Verified with mocks and database tests. |
+| **Custom Prospect Ingestion & Deduplication** | **Implemented & Tested** | Users can add arbitrary companies via `POST /api/prospects` with website normalization, domain extraction, 409 duplicate domain conflict checks, and UI modal with validation. |
+| **General-Purpose Web Search (Tavily)** | **Implemented & Tested** | Unrestricted internet search via `POST /api/search` using exact natural language queries without keyword appending. Supports general topics and company discovery with 1-click candidate ingestion. |
 | **Pipeline Step 2: TinyFish Public Web Research** | **Implemented & Tested** | `MockTinyFishClient` fixture provider and `LiveTinyFishClient` with timeout/retries/error fallback. Tested with mocks. Live crawler contract ready. |
 | **Pipeline Step 3: Gemini Evidence Extraction** | **Implemented & Tested** | Pydantic schema enforcement (`EvidenceExtractionResponse`), temperature=0.1, fact citation rules. Tested with mocks and boundary tests. Live handshake verified when key supplied. |
 | **Pipeline Step 4: Epistemic Classification** | **Implemented** | Strict separation of `FACT` (exact verbatim quote + URL), `INFERENCE` (deductive reasoning), `UNKNOWN` (unobserved ICP gaps). SubString verifier degrades ungrounded facts. |
@@ -37,7 +39,9 @@ LeadForge has completed **Milestones 1, 2, 3, 4, and Zero-Cost Production Readin
 ## 3. Automated Test & Lint Results
 
 - **Backend Pytest Suite:**
-  - **110 / 110 tests passing** (`pytest backend/app/tests -v`)
+  - **129 / 129 tests passing** (`pytest backend/app/tests -v`)
+  - `test_tavily_search.py`: General internet search, company discovery queries, exact query preservation, Tavily API payload structure, 503 missing key handling, 401 auth rejection, 429 rate limit, 502 timeout, 422 input validation.
+  - `test_custom_prospects.py`: Custom company creation, URL/domain validation, duplicate 409 rejection, listing presence, research pipeline invocation, crawl failure retention, retry flow, catalog integrity.
   - `test_api_routes.py`: Prospect REST, ICP CRUD, seeding, CSV export, draft generation.
   - `test_database.py`: SQLite WAL pragmas, check constraints, foreign key cascades, unique indices.
   - `test_dual_database.py`: Dual database support, DDL compilation for PostgreSQL and SQLite, cross-dialect timestamps, URL normalization, PRAGMA isolation, seed idempotency.
@@ -52,9 +56,9 @@ LeadForge has completed **Milestones 1, 2, 3, 4, and Zero-Cost Production Readin
   - `test_e2e_pipeline.py`: Complete 8-step pipeline execution.
 - **Backend Linting & Formatting:**
   - `ruff check backend`: 0 errors
-  - `ruff format backend --check`: 40 files compliant
+  - `ruff format backend --check`: 45 files compliant
 - **Frontend Build:**
-  - `npm run build`: Vite production build succeeded in ~2.3s with 0 errors.
+  - `npm run build`: Vite production build succeeded in ~2.5s with 0 errors.
 
 ---
 

@@ -81,9 +81,9 @@ The application follows an end-to-end 7-step workflow:
 * **FR-1.2:** The system provides default pre-loaded presets tailored for Indian SMB SaaS.
 
 ### 4.2 Step 2: Web Research via TinyFish API
-* **FR-2.1:** Accept a list of up to 10 prospect domains (e.g., Khatabook, myBillBook, Dukaan, Shiprocket, Vyapar, Classplus, etc.).
+* **FR-2.1:** Ingest arbitrary prospect companies via custom addition (`POST /api/prospects` with name, website URL, and optional description) alongside the pre-loaded 10-prospect demo catalog (e.g., Khatabook, myBillBook, Dukaan, Shiprocket, Vyapar, Classplus, etc.).
 * **FR-2.2:** TinyFish API crawls targeted pages: Homepage, About Us, Pricing, Product/Features, and Blog/Press releases.
-* **FR-2.3:** Backend caches raw crawling results in SQLite to prevent redundant API calls and control costs.
+* **FR-2.3:** Backend caches raw crawling results in the persistent database to prevent redundant API calls and control costs.
 
 ### 4.3 Step 3: Evidence & Source Capture
 * **FR-3.1:** For every discovered data point, record:

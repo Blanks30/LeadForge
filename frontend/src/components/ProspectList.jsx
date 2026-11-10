@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Filter, Database, CheckCircle, Clock } from 'lucide-react';
+import { Search, Filter, Database, CheckCircle, Clock, Plus } from 'lucide-react';
 import { ProspectRow } from './ProspectRow';
 
 export function ProspectList({
@@ -17,6 +17,7 @@ export function ProspectList({
   researchingId,
   onSeedDemo,
   seeding,
+  onOpenAddCompany,
 }) {
   const analyzedCount = prospects.filter((p) => p.status === 'ANALYZED').length;
   const pendingCount = prospects.filter((p) => p.status === 'PENDING').length;
@@ -128,6 +129,18 @@ export function ProspectList({
               <option value="50">Moderate (50+ pts)</option>
             </select>
           </div>
+
+          {/* Add Company Action */}
+          {onOpenAddCompany && (
+            <button
+              onClick={onOpenAddCompany}
+              className="px-3 py-2 rounded-lg bg-brand-500/15 hover:bg-brand-500/25 text-brand-400 border border-brand-500/40 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm focus-ring active:scale-95"
+              aria-label="Add custom company"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Company</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -176,13 +189,24 @@ export function ProspectList({
                           Seed the initial 10 curated Indian SMB SaaS prospects to evaluate TinyFish crawling, grounding, and rubric scoring.
                         </p>
                       </div>
-                      <button
-                        onClick={onSeedDemo}
-                        disabled={seeding}
-                        className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold rounded-lg shadow-sm transition-all focus-ring disabled:opacity-50 active:scale-95"
-                      >
-                        {seeding ? 'Seeding Database...' : 'Seed 10 Sample Prospects'}
-                      </button>
+                      <div className="flex items-center justify-center gap-2.5 flex-wrap">
+                        {onOpenAddCompany && (
+                          <button
+                            onClick={onOpenAddCompany}
+                            className="px-4 py-2 bg-[#141418] hover:bg-[#1C1C24] text-brand-400 border border-brand-500/40 text-xs font-semibold rounded-lg shadow-sm transition-all focus-ring active:scale-95 flex items-center gap-1.5"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Add Company</span>
+                          </button>
+                        )}
+                        <button
+                          onClick={onSeedDemo}
+                          disabled={seeding}
+                          className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold rounded-lg shadow-sm transition-all focus-ring disabled:opacity-50 active:scale-95"
+                        >
+                          {seeding ? 'Seeding Database...' : 'Seed 10 Sample Prospects'}
+                        </button>
+                      </div>
                     </div>
                   </td>
                 </tr>

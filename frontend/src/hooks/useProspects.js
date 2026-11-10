@@ -23,6 +23,7 @@ export function useProspects() {
 
   // Modals state
   const [showIcpModal, setShowIcpModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [evidenceProspect, setEvidenceProspect] = useState(null);
   const [outreachProspect, setOutreachProspect] = useState(null);
 
@@ -142,6 +143,17 @@ export function useProspects() {
     }
   };
 
+  // Handle newly added custom prospect
+  const handleProspectAdded = (newProspect) => {
+    if (newProspect) {
+      setProspects((prev) => [
+        newProspect,
+        ...prev.filter((p) => p.id !== newProspect.id),
+      ]);
+    }
+    loadProspects();
+  };
+
   return {
     prospects,
     loading,
@@ -165,6 +177,9 @@ export function useProspects() {
     handleOpenDraft,
     showIcpModal,
     setShowIcpModal,
+    showAddModal,
+    setShowAddModal,
+    handleProspectAdded,
     evidenceProspect,
     setEvidenceProspect,
     outreachProspect,

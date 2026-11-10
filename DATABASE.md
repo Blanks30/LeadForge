@@ -157,6 +157,8 @@ CREATE TABLE IF NOT EXISTS prospects (
 );
 ```
 
+> **Custom Ingestion Note:** Custom companies added via `POST /api/prospects` insert into this table with `status = 'PENDING'`, `lead_score = 0`, and the normalized root domain. The `UNIQUE` constraint on `domain` and application-level pre-checks ensure no duplicate domain entries can be created.
+
 ### 3.3 `web_sources`
 Stores scraped web pages obtained via TinyFish to provide raw citations and support caching.
 

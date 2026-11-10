@@ -60,6 +60,11 @@ export const api = {
 
   seedProspects: () => request('/prospects/seed', { method: 'POST' }),
 
+  createProspect: (payload) => request('/prospects', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
+
   getProspectDetail: (id) => request(`/prospects/${id}`),
 
   researchProspect: (id) => request(`/prospects/${id}/research`, { method: 'POST' }),
@@ -67,6 +72,12 @@ export const api = {
   generateOutreachDraft: (id, options = {}) => request(`/prospects/${id}/draft`, {
     method: 'POST',
     body: JSON.stringify(options),
+  }),
+
+  // Tavily General-Purpose Web Search
+  searchWeb: (query, maxResults = 8) => request('/search', {
+    method: 'POST',
+    body: JSON.stringify({ query, max_results: maxResults }),
   }),
 
   // CSV Export URL

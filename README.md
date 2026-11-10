@@ -4,7 +4,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-18.3-61dafb.svg)](https://react.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38bdf8.svg)](https://tailwindcss.com/)
-[![Tests](https://img.shields.io/badge/Tests-102%20Passing-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-129%20Passing-brightgreen.svg)]()
 [![Zero Hallucination](https://img.shields.io/badge/Epistemic-Zero%20Hallucination-success.svg)]()
 
 > **LeadForge** transforms public-web research into grounded, explainable prospect intelligence and hyper-personalized cold outreach drafts for SDRs selling to Indian B2B SaaS and MSME verticals.
@@ -24,6 +24,8 @@
    - **Evidence Quality (20 pts):** High ratio of verified facts to unknowns, multi-page crawl verification.
 3. **Zero Auto-Send Guarantee:** LeadForge produces review drafts with strict citation markers (e.g. `[Ref: #3]`). No automated email dispatching libraries exist in the runtime; SDR review and 1-click clipboard copy is mandatory.
 4. **Deterministic Fallback & Provenance Tracking:** Seamlessly operates offline or during API rate limits with deterministic fixtures and templates. Every outreach draft records whether it originated from `Gemini AI` or a `Deterministic Template`.
+5. **Custom Prospect Ingestion & Deduplication:** In addition to the 10 pre-loaded Indian SaaS demo companies, users can add any company with its name and website URL (`POST /api/prospects`). The system validates the HTTP/HTTPS address, derives and normalizes the root domain, guards against duplicates (HTTP 409), and enables on-demand TinyFish crawling and Gemini evidence extraction.
+6. **General-Purpose Web Search (Tavily):** Unrestricted internet search for any topic, technology trend, or organization using exact natural-language queries without keyword alteration or industry restriction. Search results display rich source metadata and offer one-click candidate ingestion into LeadForge with duplicate-domain defense.
 
 ---
 

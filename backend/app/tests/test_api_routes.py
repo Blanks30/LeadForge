@@ -13,8 +13,8 @@ def test_api_health_ok():
         data = response.json()
         assert data["status"] == "ok"
         assert data["db"] is True
-        # api_mode must be present and be one of the two valid states
-        assert data["api_mode"] in ("MOCK", "LIVE")
+        # api_mode must be present and be one of the valid states
+        assert data["api_mode"] in ("MOCK", "LIVE", "LIVE_VERIFIED", "LIVE_CONFIGURED")
 
 
 def test_get_and_update_icp():

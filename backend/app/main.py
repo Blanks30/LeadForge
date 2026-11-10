@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import routes_export, routes_icp, routes_prospects
+from app.api import routes_export, routes_icp, routes_prospects, routes_search
 from app.core.config import settings
 from app.db.seed_data import seed_initial_data
 from app.db.session import check_db_health, init_db
@@ -44,6 +44,7 @@ app.add_middleware(
 app.include_router(routes_icp.router, prefix="/api")
 app.include_router(routes_prospects.router, prefix="/api")
 app.include_router(routes_export.router, prefix="/api")
+app.include_router(routes_search.router, prefix="/api")
 
 
 @app.get("/api/health")

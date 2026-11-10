@@ -31,6 +31,10 @@ class Settings(BaseSettings):
         default="",
         description="TinyFish API Key",
     )
+    TAVILY_API_KEY: str = Field(
+        default="",
+        description="Tavily Search API Key for general-purpose internet search",
+    )
     GEMINI_API_KEY: str = Field(
         default="",
         description="Google Gemini API Key",

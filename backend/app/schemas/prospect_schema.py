@@ -1,10 +1,79 @@
 """Pydantic schemas for Prospects, Web Sources, and Evidence Items."""
 
 import json
+import re
 from datetime import datetime
 from typing import Any
+from urllib.parse import urlparse
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+DOMAIN_REGEX = re.compile(r"^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+
+
+def extract_and_normalize_domain(website_url: str) -> str:
+    """Extract and normalize root domain from a validated website URL."""
+    parsed = urlparse(website_url.strip())
+    host = parsed.hostname or parsed.netloc
+    if not host:
+        raise ValueError("Cannot derive domain from URL.")
+
+    if ":" in host:
+        host = host.split(":")[0]
+
+    domain = host.lower().strip().removeprefix("www.")
+
+    if not DOMAIN_REGEX.match(domain):
+        raise ValueError(f"Derived domain '{domain}' is not a valid domain name.")
+
+    return domain
+
+
+class ProspectCreateSchema(BaseModel):
+    """Payload for creating a custom prospect company."""
+
+    company_name: str = Field(
+        min_length=1,
+        max_length=255,
+        description="Company name",
+    )
+    website_url: str = Field(
+        min_length=1,
+        max_length=1024,
+        description="Website URL with http:// or https:// protocol",
+    )
+    description: str | None = Field(
+        default=None,
+        max_length=1000,
+        description="Optional company description or operational notes",
+    )
+
+    @field_validator("company_name")
+    @classmethod
+    def validate_company_name(cls, v: str) -> str:
+        """Ensure company name is non-empty after stripping whitespace."""
+        cleaned = v.strip()
+        if not cleaned:
+            raise ValueError("Company name cannot be blank.")
+        return cleaned
+
+    @field_validator("website_url")
+    @classmethod
+    def validate_website_url(cls, v: str) -> str:
+        """Validate URL scheme and hostname structure."""
+        cleaned = v.strip()
+        if not cleaned:
+            raise ValueError("Website URL cannot be blank.")
+
+        parsed = urlparse(cleaned)
+        if not parsed.scheme or parsed.scheme.lower() not in ("http", "https"):
+            raise ValueError("Website URL must begin with http:// or https://")
+
+        hostname = parsed.hostname or parsed.netloc
+        if not hostname:
+            raise ValueError("Website URL must include a valid hostname or domain.")
+
+        return cleaned
 
 
 class WebSourceSchema(BaseModel):
