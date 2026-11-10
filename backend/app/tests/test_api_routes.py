@@ -6,11 +6,15 @@ from app.main import app
 
 
 def test_api_health_ok():
-    """Verify GET /api/health returns operational status."""
+    """Verify GET /api/health returns operational status including api_mode indicator."""
     with TestClient(app) as client:
         response = client.get("/api/health")
         assert response.status_code == 200
-        assert response.json() == {"status": "ok", "db": True}
+        data = response.json()
+        assert data["status"] == "ok"
+        assert data["db"] is True
+        # api_mode must be present and be one of the two valid states
+        assert data["api_mode"] in ("MOCK", "LIVE")
 
 
 def test_get_and_update_icp():
@@ -180,7 +184,9 @@ def test_research_failure_persists_status_and_allows_retry(monkeypatch):
             async def crawl_prospect(self, domain: str, website_url: str):
                 return None
 
-        monkeypatch.setattr(research_service, "get_tinyfish_client", lambda: FailingCrawler())
+        monkeypatch.setattr(
+            research_service, "get_tinyfish_client", lambda: FailingCrawler()
+        )
 
         fail_res = client.post(f"/api/prospects/{vyapar_id}/research")
         assert fail_res.status_code == 502
@@ -198,4 +204,3 @@ def test_research_failure_persists_status_and_allows_retry(monkeypatch):
         retried_data = retry_res.json()
         assert retried_data["status"] == "ANALYZED"
         assert retried_data["lead_score"] > 0
-

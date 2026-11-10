@@ -31,6 +31,7 @@ class OutreachDraftSchema(BaseModel):
     citations_json: str
     citations: list[int] = []
     tone: str
+    generation_source: str = "DETERMINISTIC_TEMPLATE"
     created_at: datetime
     updated_at: datetime
 
@@ -62,6 +63,9 @@ class OutreachDraftSchema(BaseModel):
                 "citations_json": raw_citations,
                 "citations": parsed_citations,
                 "tone": getattr(data, "tone", "CONSULTATIVE_DIRECT"),
+                "generation_source": getattr(
+                    data, "generation_source", "DETERMINISTIC_TEMPLATE"
+                ),
                 "created_at": getattr(data, "created_at", None),
                 "updated_at": getattr(data, "updated_at", None),
             }

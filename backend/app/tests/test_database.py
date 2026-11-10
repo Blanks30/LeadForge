@@ -128,6 +128,7 @@ async def test_full_model_relationships_and_defaults(
     await db_session.refresh(draft)
     assert draft.id is not None
     assert draft.template_type == "EVIDENCE_PROBLEM_SOLUTION"
+    assert draft.generation_source == "DETERMINISTIC_TEMPLATE"
 
     target_prospect_id = prospect.id
     target_icp_id = icp.id

@@ -8,12 +8,16 @@ from app.main import app
 
 
 def test_health_check_returns_ok():
-    """Verify health endpoint returns status ok and db true when database is accessible."""
+    """Verify health endpoint returns status ok, db true, and api_mode when database is accessible."""
     with TestClient(app) as client:
         response = client.get("/api/health")
 
         assert response.status_code == 200
-        assert response.json() == {"status": "ok", "db": True}
+        data = response.json()
+        assert data["status"] == "ok"
+        assert data["db"] is True
+        assert data["api_mode"] in ("MOCK", "LIVE")
+        assert "live_connected" in data
 
 
 def test_health_check_degraded_when_db_down():
@@ -24,7 +28,10 @@ def test_health_check_degraded_when_db_down():
             response = client.get("/api/health")
 
             assert response.status_code == 200
-            assert response.json() == {"status": "degraded", "db": False}
+            data = response.json()
+            assert data["status"] == "degraded"
+            assert data["db"] is False
+            assert data["api_mode"] in ("MOCK", "LIVE")
 
 
 def test_unknown_route_returns_404():

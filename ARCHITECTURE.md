@@ -230,3 +230,23 @@ sequenceDiagram
 1. **Raw Crawl Persistence:** Crawled HTML and extracted text snippets are stored in the `web_sources` table. Repeated analysis or prompt adjustments do not trigger new web requests.
 2. **Deterministic Hashing:** A SHA-256 hash of the scraped text is recorded to detect whether external content has changed prior to re-running LLM extraction.
 3. **Chunking & Token Budgeting:** Large scraped pages are pruned of navigation links, footers, and scripts, keeping payload sizes below 8,000 tokens per prospect extraction call to conserve LLM quota.
+
+---
+
+## 8. Deployment & Persistence Architecture
+
+### 8.1 SQLite Persistence on Ephemeral Platforms
+* **Limitation:** Standard container hosting (AWS Fargate, Google Cloud Run, Render, Railway, Fly.io, Heroku) uses an ephemeral root filesystem. Any container restart or redeployment resets local disk storage, wiping SQLite tables.
+* **Production Persistence Requirement:** When deploying to production containers, a persistent block volume must be attached and mounted at `/app/backend/data` (e.g., Docker volume `leadforge_sqlite_data`, AWS ECS EFS mount, or Fly.io persistent storage volume).
+* **WAL Mode & Concurrency:** SQLite is initialized with `PRAGMA journal_mode=WAL`, `PRAGMA synchronous=NORMAL`, and `PRAGMA busy_timeout=5000` to ensure safe concurrent reads during web crawling and analysis.
+
+### 8.2 Production Container Topology
+* **Backend:** Python 3.12-slim base image running `uvicorn app.main:app --host 0.0.0.0 --port 8000`. Exposes `/api/health` with automated Docker health checks.
+* **Frontend:** Multi-stage build (`node:20-alpine` build -> `nginx:alpine` static hosting). Reverse-proxies `/api/` traffic internally to the backend service.
+* **Orchestration:** `docker-compose.yml` connects backend and frontend on a private bridge network with named volume persistence for SQLite.
+
+### 8.3 3-Tier Health Check & Status Model
+The `/api/health` endpoint dynamically inspects database connectivity and live API credentials, returning:
+1. `MOCK`: Running offline or `USE_MOCK_APIS=true` without external API credentials.
+2. `LIVE_CONFIGURED`: API keys detected in environment, but live connectivity not yet validated against external provider endpoints.
+3. `LIVE_VERIFIED`: Real HTTP handshake (`GET https://generativelanguage.googleapis.com/v1beta/models/{model}`) successfully completed with < 5s latency.

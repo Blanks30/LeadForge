@@ -1,9 +1,12 @@
 """TinyFish web crawling client adapter with deterministic mock fallback.
 
-Enforces external boundary defense: isolates network crawling, timeouts,
+Enforces external boundary defense: isolates network crawling, timeouts, retries,
 and payload transformation, with graceful fallback to deterministic mock fixtures.
+Follows ARCHITECTURE.md §6.1 and PRD.md §4.2.
 """
 
+import asyncio
+import logging
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -11,6 +14,8 @@ import httpx
 
 from app.core.config import settings
 from app.services.mock_research_data import MOCK_RESEARCH_PAYLOADS
+
+logger = logging.getLogger("leadforge.tinyfish")
 
 
 class TinyFishClientBase(ABC):
@@ -75,17 +80,25 @@ class MockTinyFishClient(TinyFishClientBase):
 class LiveTinyFishClient(TinyFishClientBase):
     """Live HTTP client for TinyFish web scraping API.
 
-    Caps timeouts at 30 seconds per domain and gracefully degrades to MockTinyFishClient
-    if the external API is unreachable, unconfigured, or returns an error.
+    Implements:
+    - 30-second strict timeout ceiling per domain (PRD.md §4.2)
+    - Max 2 retries on HTTP 429/503 with exponential backoff (ARCHITECTURE.md §6.1)
+    - Safe fallback to MockTinyFishClient on network error, authentication failure, or empty response
     """
 
     provider_name: str = "TINYFISH_LIVE"
 
     def __init__(
-        self, api_key: str, endpoint: str = "https://api.tinyfish.io/v1/crawl"
+        self,
+        api_key: str,
+        endpoint: str = "https://api.tinyfish.io/v1/crawl",
+        max_retries: int = 2,
+        timeout_seconds: float = 30.0,
     ) -> None:
         self.api_key = api_key
         self.endpoint = endpoint
+        self.max_retries = max_retries
+        self.timeout_seconds = timeout_seconds
         self._mock_fallback = MockTinyFishClient()
 
     async def crawl_prospect(
@@ -93,9 +106,11 @@ class LiveTinyFishClient(TinyFishClientBase):
         domain: str,
         website_url: str,
     ) -> dict[str, Any] | None:
-        """Execute HTTP request against TinyFish API with 30s timeout and safe fallback."""
+        """Execute HTTP request against TinyFish API with retries and safe fallback."""
         if not self.api_key:
-            # Fall back to mock if no API key is provided
+            logger.info(
+                "TINYFISH_API_KEY unset; serving mock crawl fixtures for %s.", domain
+            )
             return await self._mock_fallback.crawl_prospect(domain, website_url)
 
         headers = {
@@ -107,22 +122,80 @@ class LiveTinyFishClient(TinyFishClientBase):
             "url": website_url,
             "domain": domain,
             "pages": ["homepage", "pricing", "about", "blog"],
-            "max_timeout_seconds": 30,
+            "max_timeout_seconds": int(self.timeout_seconds),
         }
 
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    self.endpoint, json=payload, headers=headers
+        retries = 0
+        while retries <= self.max_retries:
+            try:
+                async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
+                    response = await client.post(
+                        self.endpoint, json=payload, headers=headers
+                    )
+
+                    if response.status_code == 200:
+                        data = response.json()
+                        # Ensure minimal expected structure exists
+                        if isinstance(data, dict) and "sources" in data:
+                            return {**data, "provider": self.provider_name}
+                        # If 200 but empty/invalid structure, fallback cleanly
+                        logger.warning(
+                            "TinyFish returned 200 with invalid structure for %s; using mock fallback.",
+                            domain,
+                        )
+                        return await self._mock_fallback.crawl_prospect(
+                            domain, website_url
+                        )
+
+                    # Transient server or rate-limit error: retry with exponential backoff
+                    if (
+                        response.status_code in (429, 503)
+                        and retries < self.max_retries
+                    ):
+                        retries += 1
+                        backoff = 0.5 * (2 ** (retries - 1))
+                        logger.warning(
+                            "TinyFish HTTP %d for %s; retry %d/%d in %.1fs",
+                            response.status_code,
+                            domain,
+                            retries,
+                            self.max_retries,
+                            backoff,
+                        )
+                        await asyncio.sleep(backoff)
+                        continue
+
+                    # Non-retriable HTTP error (401, 403, 404, 500, etc.)
+                    logger.warning(
+                        "TinyFish crawl failed (HTTP %d) for %s; falling back to mock fixtures.",
+                        response.status_code,
+                        domain,
+                    )
+                    return await self._mock_fallback.crawl_prospect(domain, website_url)
+
+            except (httpx.TimeoutException, httpx.RequestError, OSError) as exc:
+                if retries < self.max_retries:
+                    retries += 1
+                    backoff = 0.5 * (2 ** (retries - 1))
+                    logger.warning(
+                        "TinyFish network error (%s) for %s; retry %d/%d in %.1fs",
+                        type(exc).__name__,
+                        domain,
+                        retries,
+                        self.max_retries,
+                        backoff,
+                    )
+                    await asyncio.sleep(backoff)
+                    continue
+
+                logger.warning(
+                    "TinyFish network failure (%s) for %s after retries; falling back to mock fixtures.",
+                    type(exc).__name__,
+                    domain,
                 )
-                if response.status_code == 200:
-                    data = response.json()
-                    return {**data, "provider": self.provider_name}
-                # Log or handle non-200 by falling back cleanly
                 return await self._mock_fallback.crawl_prospect(domain, website_url)
-        except (httpx.HTTPError, TimeoutError, OSError):
-            # Network failure or timeout: fallback to mock adapter without crashing
-            return await self._mock_fallback.crawl_prospect(domain, website_url)
+
+        return await self._mock_fallback.crawl_prospect(domain, website_url)
 
 
 def get_tinyfish_client() -> TinyFishClientBase:

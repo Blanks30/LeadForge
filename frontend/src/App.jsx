@@ -14,6 +14,8 @@ export default function App() {
     loading,
     error,
     apiHealthy,
+    healthStatus,
+    checkHealth,
     icp,
     setIcp,
     search,
@@ -58,6 +60,8 @@ export default function App() {
       <div id="live-console" ref={consoleRef} className="scroll-mt-4">
         <Header
           apiHealthy={apiHealthy}
+          healthStatus={healthStatus}
+          onRetryHealth={checkHealth}
           onOpenIcp={() => setShowIcpModal(true)}
           onSeedDemo={handleSeed}
           seeding={seeding}

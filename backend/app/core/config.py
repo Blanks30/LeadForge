@@ -1,8 +1,10 @@
 """Application settings and environment configuration."""
 
+import json
+from contextlib import suppress
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Base directory paths
@@ -43,10 +45,30 @@ class Settings(BaseSettings):
         description="SQLAlchemy async SQLite database connection string",
     )
 
-    CORS_ORIGINS: list[str] = Field(
+    CORS_ORIGINS: list[str] | str = Field(
         default=["http://localhost:5173", "http://127.0.0.1:5173"],
         description="Allowed CORS origins for local frontend",
     )
+
+    @field_validator("CORS_ORIGINS")
+    @classmethod
+    def assemble_cors_origins(cls, v: list[str] | str) -> list[str]:
+        """Support both JSON list format and comma-separated string format."""
+        if isinstance(v, str):
+            v = v.strip()
+            if not v:
+                return []
+            if v.startswith("[") and v.endswith("]"):
+                with suppress(json.JSONDecodeError, ValueError):
+                    parsed = json.loads(v)
+                    if isinstance(parsed, list):
+                        return [
+                            str(origin).strip()
+                            for origin in parsed
+                            if str(origin).strip()
+                        ]
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return [str(origin).strip() for origin in v if str(origin).strip()]
 
     model_config = SettingsConfigDict(
         env_file=str(BACKEND_DIR / ".env"),

@@ -1,7 +1,8 @@
-"""Google Gemini API client for evidence extraction and structured sales intelligence.
+"""Google Gemini API client for evidence extraction and grounded outreach drafting.
 
 Enforces strict grounding, explainable reasoning, and deterministic JSON schemas
-following AGENTS.md. Communicates asynchronously via httpx to official Gemini REST endpoints.
+following AGENTS.md §4.1 (evidence extraction) and §4.2 (outreach drafting).
+Communicates asynchronously via httpx to official Gemini REST endpoints.
 """
 
 import json
@@ -63,7 +64,7 @@ class GeminiMalformedResponseError(GeminiError):
 
 
 # ---------------------------------------------------------------------------
-# Structured Schemas (matching AGENTS.md §4.1)
+# Structured Schemas (matching AGENTS.md §4.1 and §4.2)
 # ---------------------------------------------------------------------------
 
 
@@ -106,12 +107,24 @@ class GeminiEvidenceItem(BaseModel):
 
 
 class GeminiExtractionResponse(BaseModel):
-    """Complete structured extraction payload from Gemini."""
+    """Complete structured extraction payload from Gemini (AGENTS.md §4.1)."""
 
     company_name: str
     hq_location: str | None = None
     employee_range: str | None = None
     evidence_items: list[GeminiEvidenceItem] = Field(default_factory=list)
+
+
+class GeminiOutreachDraftResponse(BaseModel):
+    """Structured outreach email draft validated against AGENTS.md §4.2 schema."""
+
+    subject_line: str = Field(description="Compelling, personalized email subject line")
+    body_text: str = Field(description="Consultative cold email body under 120 words")
+    referenced_evidence_ids: list[int] = Field(
+        default_factory=list,
+        description="Evidence item IDs cited inline as [Ref: #N]",
+    )
+    word_count: int = Field(description="Accurate word count of body_text")
 
 
 EVIDENCE_EXTRACTION_SYSTEM_PROMPT = """You are the Evidence Extraction Specialist for LeadForge, an evidence-first sales intelligence platform.
@@ -128,6 +141,18 @@ STRICT OPERATING RULES:
 3. Acknowledged Gaps: If an ICP requirement cannot be confirmed from the text, create an item with status UNKNOWN. Do not guess.
 4. Publication Dates: Extract published dates from blog posts or press snippets if present; otherwise return null.
 5. You must output valid JSON matching the specified schema.
+"""
+
+OUTREACH_DRAFT_SYSTEM_PROMPT = """You are the Outreach Copywriting Specialist for LeadForge.
+Your task is to draft a concise, consultative cold email (under 120 words) for a sales prospect.
+
+STRICT GROUNDING RULES:
+1. You may ONLY reference company attributes, milestones, or pricing details that are present in the provided APPROVED EVIDENCE LIST.
+2. For every personalized sentence or claim in the email body, you MUST append a citation marker referencing the evidence item ID (e.g. "[Ref: #3]").
+3. DO NOT fabricate mutual connections, past conversations, or unverified market gossip.
+4. Tone: Professional, consultative, direct, respectful of founder/SDR time.
+5. NO OUTBOUND SENDING: You are generating a review draft only.
+6. Keep word_count accurate — count every word in body_text.
 """
 
 
@@ -150,8 +175,8 @@ def resolve_model_name(model_name: str | None) -> str:
 class GeminiClient:
     """Asynchronous HTTP client for Google Gemini REST API.
 
-    Executes structured evidence extraction with strict schema validation,
-    sensible timeouts, and comprehensive error handling.
+    Executes structured evidence extraction and outreach drafting with strict schema
+    validation, sensible timeouts, and comprehensive error handling.
     """
 
     def __init__(
@@ -178,7 +203,7 @@ class GeminiClient:
         company_name: str,
         sources: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        """Construct prompt and structured JSON generationConfig."""
+        """Construct evidence-extraction prompt and structured JSON generationConfig."""
         content_lines: list[str] = [
             f"TARGET COMPANY: {company_name}",
             "",
@@ -215,24 +240,45 @@ class GeminiClient:
             },
         }
 
-    async def extract_evidence(
+    def _build_outreach_prompt_payload(
         self,
         company_name: str,
-        sources: list[dict[str, Any]],
-    ) -> GeminiExtractionResponse:
-        """Call Gemini API to extract grounded facts, inferences, and unknowns from sources.
+        approved_evidence: list[dict[str, Any]],
+        tone: str = "CONSULTATIVE_DIRECT",
+    ) -> dict[str, Any]:
+        """Construct the outreach draft prompt following AGENTS.md §4.2."""
+        evidence_json = json.dumps(approved_evidence, indent=2)
+        user_content = (
+            f"TARGET COMPANY: {company_name}\n"
+            f"TONE: {tone}\n\n"
+            f"APPROVED EVIDENCE LIST:\n{evidence_json}\n\n"
+            "Draft the cold email now. Respond with a single valid JSON object strictly adhering to the schema."
+        )
 
-        Never logs or exposes the API key. Validates response schemas strictly.
+        return {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [
+                        {"text": (f"{OUTREACH_DRAFT_SYSTEM_PROMPT}\n\n{user_content}")}
+                    ],
+                }
+            ],
+            "generationConfig": {
+                "response_mime_type": "application/json",
+                "temperature": 0.3,
+            },
+        }
+
+    async def _post_to_gemini(self, payload: dict[str, Any]) -> str:
+        """Execute the HTTP POST to Gemini and return the raw 200 response text.
+
+        Raises typed GeminiError subclasses on all failure modes.
+        Never logs or exposes the API key.
         """
         if not self.api_key:
             raise GeminiConfigError("GEMINI_API_KEY is not configured or is empty.")
 
-        if not sources:
-            raise GeminiMalformedResponseError(
-                "Cannot extract evidence from empty sources list."
-            )
-
-        payload = self._build_prompt_payload(company_name, sources)
         headers = {
             "Content-Type": "application/json",
             "x-goog-api-key": self.api_key,
@@ -255,11 +301,9 @@ class GeminiClient:
                 f"Gemini API network connection failure: {exc.__class__.__name__}"
             ) from exc
 
-        # Process HTTP response status
         status = response.status_code
         if status == 200:
-            return self._parse_successful_response(response.text)
-
+            return response.text
         if status in (401, 403):
             raise GeminiAuthError(
                 f"Gemini authentication failed (HTTP {status}). Verify GEMINI_API_KEY."
@@ -276,13 +320,73 @@ class GeminiClient:
             raise GeminiUnavailableError(
                 f"Gemini service is temporarily unavailable (HTTP {status})."
             )
-
         raise GeminiError(
             f"Unexpected Gemini API error (HTTP {status}): {response.text[:200]}"
         )
 
-    def _parse_successful_response(self, raw_body: str) -> GeminiExtractionResponse:
-        """Parse Gemini response container, extract JSON text part, and validate schema."""
+    async def extract_evidence(
+        self,
+        company_name: str,
+        sources: list[dict[str, Any]],
+    ) -> GeminiExtractionResponse:
+        """Call Gemini API to extract grounded facts, inferences, and unknowns from sources.
+
+        Never logs or exposes the API key. Validates response schemas strictly.
+        """
+        if not self.api_key:
+            raise GeminiConfigError("GEMINI_API_KEY is not configured or is empty.")
+
+        if not sources:
+            raise GeminiMalformedResponseError(
+                "Cannot extract evidence from empty sources list."
+            )
+
+        payload = self._build_prompt_payload(company_name, sources)
+        raw_body = await self._post_to_gemini(payload)
+        return self._parse_extraction_response(raw_body)
+
+    async def generate_outreach_draft(
+        self,
+        company_name: str,
+        approved_evidence: list[dict[str, Any]],
+        tone: str = "CONSULTATIVE_DIRECT",
+    ) -> GeminiOutreachDraftResponse:
+        """Call Gemini to generate a grounded cold email draft citing only approved evidence.
+
+        Follows AGENTS.md §4.2: subject line + body under 120 words + citation markers.
+        Never logs or exposes the API key. Validates response schema strictly.
+        """
+        if not self.api_key:
+            raise GeminiConfigError("GEMINI_API_KEY is not configured or is empty.")
+
+        if not approved_evidence:
+            raise GeminiMalformedResponseError(
+                "Cannot generate outreach draft from empty evidence list."
+            )
+
+        payload = self._build_outreach_prompt_payload(
+            company_name, approved_evidence, tone
+        )
+        raw_body = await self._post_to_gemini(payload)
+        return self._parse_outreach_response(raw_body)
+
+    def _parse_extraction_response(self, raw_body: str) -> GeminiExtractionResponse:
+        """Parse and validate the Gemini evidence extraction response."""
+        return self._parse_gemini_response(raw_body, GeminiExtractionResponse, "schema")
+
+    def _parse_outreach_response(self, raw_body: str) -> GeminiOutreachDraftResponse:
+        """Parse and validate the Gemini outreach draft response."""
+        return self._parse_gemini_response(
+            raw_body, GeminiOutreachDraftResponse, "outreach schema"
+        )
+
+    def _parse_gemini_response(
+        self,
+        raw_body: str,
+        model_cls: type,
+        schema_label: str,
+    ) -> Any:
+        """Shared Gemini response parsing: JSON decode, candidate extraction, schema validation."""
         try:
             root_data = json.loads(raw_body)
         except json.JSONDecodeError as exc:
@@ -292,7 +396,6 @@ class GeminiClient:
 
         candidates = root_data.get("candidates", [])
         if not candidates:
-            # Check for safety rating blocks or empty responses
             prompt_feedback = root_data.get("promptFeedback", {})
             block_reason = prompt_feedback.get("blockReason", "No candidates returned")
             raise GeminiMalformedResponseError(
@@ -309,9 +412,11 @@ class GeminiClient:
 
         text_content = parts[0]["text"].strip()
 
-        # Handle potential markdown code fencing if returned by model
+        # Strip optional markdown code fencing returned by some model variants
         if text_content.startswith("```json"):
-            text_content = text_content.removeprefix("```json").removesuffix("```").strip()
+            text_content = (
+                text_content.removeprefix("```json").removesuffix("```").strip()
+            )
         elif text_content.startswith("```"):
             text_content = text_content.removeprefix("```").removesuffix("```").strip()
 
@@ -323,11 +428,39 @@ class GeminiClient:
             ) from exc
 
         try:
-            return GeminiExtractionResponse.model_validate(parsed_json)
+            return model_cls.model_validate(parsed_json)
         except ValidationError as exc:
             raise GeminiMalformedResponseError(
-                f"Gemini JSON output violated schema: {exc}"
+                f"Gemini JSON output violated {schema_label}: {exc}"
             ) from exc
+
+    # Keep legacy alias so existing test patches on `_parse_successful_response` continue to work
+    def _parse_successful_response(self, raw_body: str) -> GeminiExtractionResponse:
+        """Alias for _parse_extraction_response (backward-compatibility)."""
+        return self._parse_extraction_response(raw_body)
+
+    async def verify_connectivity(self) -> bool:
+        """Verify API key validity against official endpoint.
+
+        Performs a lightweight minimal request to verify authorization.
+        Returns True if authorized, False otherwise. Never throws.
+        """
+        if not self.api_key:
+            return False
+
+        headers = {
+            "Content-Type": "application/json",
+            "x-goog-api-key": self.api_key,
+            "User-Agent": "LeadForge/0.1.0",
+        }
+        # Lightweight ping: check model details via GET or minimal generateContent
+        url = f"{GEMINI_API_BASE_URL}/{self.model}"
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                res = await client.get(url, headers=headers)
+                return res.status_code == 200
+        except (httpx.RequestError, OSError):
+            return False
 
 
 def get_gemini_client() -> GeminiClient:

@@ -323,6 +323,12 @@ class OutreachDraft(Base):
         default="CONSULTATIVE_DIRECT",
         server_default="CONSULTATIVE_DIRECT",
     )
+    generation_source: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default="DETERMINISTIC_TEMPLATE",
+        server_default="DETERMINISTIC_TEMPLATE",
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

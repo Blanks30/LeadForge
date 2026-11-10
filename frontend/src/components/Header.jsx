@@ -1,15 +1,29 @@
 import React from 'react';
-import { Target, Download, Database, Flame, Activity } from 'lucide-react';
+import { Target, Download, Database, RefreshCw } from 'lucide-react';
 import { api } from '../api/client';
 
 export function Header({
   apiHealthy,
+  healthStatus,
+  onRetryHealth,
   onOpenIcp,
   onSeedDemo,
   seeding,
   prospectCount,
 }) {
   const exportUrl = api.getExportUrl();
+
+  const mode = healthStatus?.mode || (apiHealthy ? 'MOCK' : 'OFFLINE');
+  const isHealthy = healthStatus ? healthStatus.healthy : apiHealthy;
+  const isLoading = healthStatus?.loading;
+
+  // Three explicit operational states:
+  // 1. LIVE_VERIFIED: Real external Gemini connection confirmed operational
+  // 2. LIVE_CONFIGURED: Live keys in environment, awaiting/failing real ping check
+  // 3. MOCK: Offline evaluation mode with deterministic fixtures
+  const isLiveVerified = mode === 'LIVE_VERIFIED';
+  const isLiveConfigured = mode === 'LIVE_CONFIGURED';
+  const isMock = mode === 'MOCK';
 
   return (
     <header className="border-b border-[#272736] bg-[#0A0A0D] sticky top-0 z-40 transition-colors shadow-md">
@@ -41,22 +55,76 @@ export function Header({
 
         {/* Global Action Toolbar */}
         <div className="flex items-center flex-wrap gap-1.5 sm:gap-2.5">
-          {/* Health Indicator with Live Pulse Dot */}
-          <div
-            className={`hidden sm:inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-              apiHealthy
-                ? 'bg-[#062E20] text-emerald-400 border-emerald-600/50 shadow-sm'
-                : 'bg-[#2A0E0E] text-rose-400 border-rose-800/50'
-            }`}
-            title={apiHealthy ? 'Backend API connected' : 'Backend API disconnected'}
-          >
-            <span className="relative flex h-2 w-2">
-              {apiHealthy && (
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              )}
-              <span className={`relative inline-flex rounded-full h-2 w-2 ${apiHealthy ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
-            </span>
-            <span className="font-medium text-[11px] font-mono">{apiHealthy ? 'API Active' : 'API Offline'}</span>
+          {/* Health & API Mode Indicator */}
+          <div className="hidden sm:inline-flex items-center gap-2">
+            {isLoading ? (
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono border bg-[#14141A] text-zinc-400 border-[#272736]">
+                <RefreshCw className="w-3 h-3 animate-spin text-zinc-400" />
+                <span className="text-[11px]">Connecting...</span>
+              </div>
+            ) : isHealthy ? (
+              <div className="inline-flex items-center gap-1.5">
+                {/* Active Connection Dot */}
+                <div
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border bg-[#062E20] text-emerald-400 border-emerald-600/50 shadow-sm"
+                  title="Backend API connected and SQLite database operational"
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+                  </span>
+                  <span className="font-medium text-[11px] font-mono">API Active</span>
+                </div>
+
+                {/* Clear MOCK vs LIVE Mode Indicator Badge with 3 distinct states */}
+                <span
+                  data-testid="api-mode-badge"
+                  className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded border inline-flex items-center gap-1 ${
+                    isLiveVerified
+                      ? 'bg-emerald-950/60 text-emerald-300 border-emerald-500/50'
+                      : isLiveConfigured
+                      ? 'bg-amber-950/60 text-amber-300 border-amber-500/50'
+                      : 'bg-zinc-800/80 text-zinc-300 border-zinc-700/60'
+                  }`}
+                  title={
+                    isLiveVerified
+                      ? 'Live Mode Verified: Real Google Gemini API connectivity confirmed operational'
+                      : isLiveConfigured
+                      ? 'Live Mode Configured: API keys present, external connectivity check pending or degraded'
+                      : 'Mock Mode: Offline evaluation using deterministic grounded fixtures'
+                  }
+                >
+                  <span>
+                    {isLiveVerified
+                      ? 'LIVE • VERIFIED'
+                      : isLiveConfigured
+                      ? 'LIVE • CONFIGURED'
+                      : 'MOCK'}
+                  </span>
+                </span>
+              </div>
+            ) : (
+              /* Disconnected / Failure State with Retry Button */
+              <div className="inline-flex items-center gap-1.5">
+                <div
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border bg-[#2A0E0E] text-rose-400 border-rose-800/50"
+                  title={healthStatus?.error || 'Backend API offline'}
+                >
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-400"></span>
+                  <span className="font-medium text-[11px] font-mono">API Offline</span>
+                </div>
+                {onRetryHealth && (
+                  <button
+                    onClick={onRetryHealth}
+                    className="p-1 rounded-md bg-[#14141A] hover:bg-[#1B1B22] text-zinc-400 hover:text-white border border-[#272736] text-[11px] font-mono transition-colors focus-ring"
+                    title="Retry connection"
+                    aria-label="Retry connection"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* ICP Configuration Trigger */}

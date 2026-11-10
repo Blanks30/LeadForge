@@ -117,4 +117,3 @@ class ProspectDetailSchema(ProspectSummarySchema):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
-

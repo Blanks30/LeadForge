@@ -10,6 +10,7 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
+import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -59,7 +60,13 @@ async def execute_prospect_research(
     crawler = get_tinyfish_client()
     try:
         payload = await crawler.crawl_prospect(prospect.domain, prospect.website_url)
-    except Exception:
+    except (httpx.HTTPError, OSError, TimeoutError, ValueError) as exc:
+        logger.warning(
+            "Crawl failed for '%s' (%s): %s",
+            prospect.domain,
+            type(exc).__name__,
+            exc,
+        )
         payload = None
 
     if not payload:
@@ -94,11 +101,7 @@ async def execute_prospect_research(
         await session.flush()
 
         # 2. Extract evidence: live Gemini extraction if live mode is enabled, else mock payload
-        is_live_mode = (
-            not settings.USE_MOCK_APIS
-            and payload.get("provider") != "MOCK_ADAPTER"
-            and bool(settings.GEMINI_API_KEY)
-        )
+        is_live_mode = not settings.USE_MOCK_APIS and bool(settings.GEMINI_API_KEY)
 
         gemini_hq_location: str | None = None
         gemini_employee_range: str | None = None
@@ -141,19 +144,23 @@ async def execute_prospect_research(
                 for item in extraction.evidence_items:
                     matched_idx = 0
                     for s_i, s in enumerate(created_sources):
-                        if item.source_url and s.url.rstrip("/") == item.source_url.rstrip("/"):
+                        if item.source_url and s.url.rstrip(
+                            "/"
+                        ) == item.source_url.rstrip("/"):
                             matched_idx = s_i
                             break
-                    raw_evidence_items.append({
-                        "category": item.category,
-                        "rubric_criterion": item.rubric_criterion,
-                        "claim_text": item.claim_text,
-                        "exact_quote": item.exact_quote,
-                        "epistemic_status": item.epistemic_status,
-                        "confidence_score": item.confidence_score,
-                        "gemini_reasoning": item.gemini_reasoning,
-                        "source_index": matched_idx,
-                    })
+                    raw_evidence_items.append(
+                        {
+                            "category": item.category,
+                            "rubric_criterion": item.rubric_criterion,
+                            "claim_text": item.claim_text,
+                            "exact_quote": item.exact_quote,
+                            "epistemic_status": item.epistemic_status,
+                            "confidence_score": item.confidence_score,
+                            "gemini_reasoning": item.gemini_reasoning,
+                            "source_index": matched_idx,
+                        }
+                    )
                 gemini_hq_location = extraction.hq_location
                 gemini_employee_range = extraction.employee_range
             else:
@@ -183,9 +190,8 @@ async def execute_prospect_research(
                     # Anti-hallucination defense: degrade ungrounded claim to inference
                     epistemic = "INFERENCE"
                     reasoning = (
-                        (reasoning + " | " if reasoning else "")
-                        + "Ungrounded quote degraded to inference."
-                    )
+                        reasoning + " | " if reasoning else ""
+                    ) + "Ungrounded quote degraded to inference."
             elif epistemic == "UNKNOWN":
                 quote = None
 
@@ -227,10 +233,15 @@ async def execute_prospect_research(
         await session.refresh(prospect)
 
         return prospect
-    except Exception:
+    except (ValueError, KeyError, AttributeError, OSError, RuntimeError) as exc:
+        logger.error(
+            "Research pipeline failed for prospect_id=%d (%s): %s",
+            prospect_id,
+            type(exc).__name__,
+            exc,
+        )
         await session.rollback()
         prospect.status = "FAILED"
         await session.commit()
         await session.refresh(prospect)
         return prospect
-

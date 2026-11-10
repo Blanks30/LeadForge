@@ -5,7 +5,13 @@ export function useProspects() {
   const [prospects, setProspects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [apiHealthy, setApiHealthy] = useState(true);
+  const [healthStatus, setHealthStatus] = useState({
+    loading: true,
+    healthy: false,
+    mode: 'MOCK',
+    liveConnected: false,
+    error: null,
+  });
 
   const [icp, setIcp] = useState(null);
   const [search, setSearch] = useState('');
@@ -21,13 +27,31 @@ export function useProspects() {
   const [outreachProspect, setOutreachProspect] = useState(null);
 
   // Check health & fetch initial ICP
-  const loadInitialContext = useCallback(async () => {
+  const checkHealth = useCallback(async () => {
+    setHealthStatus((prev) => ({ ...prev, loading: true }));
     try {
       const health = await api.getHealth();
-      setApiHealthy(health?.status === 'ok' && health?.db === true);
-    } catch {
-      setApiHealthy(false);
+      const isHealthy = health?.status === 'ok' && health?.db === true;
+      setHealthStatus({
+        loading: false,
+        healthy: isHealthy,
+        mode: health?.api_mode || 'MOCK',
+        liveConnected: Boolean(health?.live_connected),
+        error: isHealthy ? null : 'Degraded DB service',
+      });
+    } catch (err) {
+      setHealthStatus({
+        loading: false,
+        healthy: false,
+        mode: 'MOCK',
+        liveConnected: false,
+        error: err.message || 'Connection failure',
+      });
     }
+  }, []);
+
+  const loadInitialContext = useCallback(async () => {
+    await checkHealth();
 
     try {
       const icpData = await api.getIcp();
@@ -35,7 +59,7 @@ export function useProspects() {
     } catch (err) {
       console.warn('Could not load ICP profile:', err);
     }
-  }, []);
+  }, [checkHealth]);
 
   // Fetch prospect list based on active filters
   const loadProspects = useCallback(async () => {
@@ -122,7 +146,9 @@ export function useProspects() {
     prospects,
     loading,
     error,
-    apiHealthy,
+    apiHealthy: healthStatus.healthy,
+    healthStatus,
+    checkHealth,
     icp,
     setIcp,
     search,

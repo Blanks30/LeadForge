@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Copy, Check, Lock, Sparkles, RefreshCw, ShieldCheck, ExternalLink, AlertCircle } from 'lucide-react';
+import { X, Copy, Check, Lock, Sparkles, RefreshCw, ShieldCheck, AlertCircle, Cpu, FileText } from 'lucide-react';
 import { api } from '../api/client';
 import { EpistemicBadge } from './EpistemicBadge';
 
@@ -133,6 +133,33 @@ export function OutreachModal({ prospect, onClose }) {
                 <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 border border-brand-500/30">
                   Review Draft
                 </span>
+                {draft?.generation_source && (
+                  <span
+                    data-testid="outreach-generation-source"
+                    className={`text-[10px] uppercase font-mono font-semibold px-2 py-0.5 rounded border inline-flex items-center gap-1 ${
+                      draft.generation_source === 'GEMINI_AI'
+                        ? 'bg-purple-950/60 text-purple-300 border-purple-500/40'
+                        : 'bg-zinc-800/80 text-zinc-300 border-zinc-700/60'
+                    }`}
+                    title={
+                      draft.generation_source === 'GEMINI_AI'
+                        ? 'Synthesized via live Google Gemini API citing approved FACT evidence'
+                        : 'Generated via deterministic rule-based template engine'
+                    }
+                  >
+                    {draft.generation_source === 'GEMINI_AI' ? (
+                      <>
+                        <Cpu className="w-3 h-3 text-purple-400" />
+                        <span>Gemini AI</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="w-3 h-3 text-zinc-400" />
+                        <span>Deterministic Template</span>
+                      </>
+                    )}
+                  </span>
+                )}
               </h2>
               <p className="text-xs text-zinc-400">
                 Target: <span className="font-semibold text-zinc-200">{prospect.company_name}</span> ({prospect.domain})

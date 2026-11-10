@@ -79,6 +79,16 @@ async def init_db(target_engine: AsyncEngine | None = None) -> None:
 
     async with eng.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Migrate any missing columns for existing SQLite tables (e.g., generation_source)
+        # Using PRAGMA table_info check avoids transaction errors on nested/savepoint operations
+        result = await conn.execute(text("PRAGMA table_info(outreach_drafts)"))
+        existing_cols = {row[1] for row in result.fetchall()}
+        if "generation_source" not in existing_cols:
+            await conn.execute(
+                text(
+                    "ALTER TABLE outreach_drafts ADD COLUMN generation_source TEXT NOT NULL DEFAULT 'DETERMINISTIC_TEMPLATE'"
+                )
+            )
 
 
 async def check_db_health(target_engine: AsyncEngine | None = None) -> bool:
