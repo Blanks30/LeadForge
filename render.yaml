@@ -1,0 +1,42 @@
+services:
+  # Render Free Web Service (₹0/month - 750 free instance hours/month)
+  # Connects to Neon Serverless PostgreSQL for persistent storage across container restarts
+  - type: web
+    name: leadforge-backend
+    env: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: backend
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: USE_MOCK_APIS
+        value: "true"
+      # Neon Serverless PostgreSQL connection string (₹0/mo, 1GB free storage, no credit card required)
+      # In local development or standalone container, defaults to local SQLite
+      - key: DATABASE_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: TINYFISH_API_KEY
+        sync: false
+      - key: CORS_ORIGINS
+        value: "https://leadforge.pages.dev,https://leadforge-frontend.onrender.com,http://localhost:5173"
+
+  # Render Free Static Site (Alternative to Cloudflare Pages; ₹0/month)
+  - type: web
+    name: leadforge-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        value: https://leadforge-backend.onrender.com/api

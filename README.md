@@ -48,9 +48,9 @@
 
 ## Technology Stack
 
-- **Backend:** Python 3.12, FastAPI, SQLAlchemy (asyncio), aiosqlite (SQLite with WAL mode), Pydantic v2 Settings.
+- **Backend:** Python 3.12, FastAPI, SQLAlchemy (asyncio), Dual Database Support: SQLite WAL mode (`aiosqlite`) locally & Neon Serverless PostgreSQL (`asyncpg`) in production, Pydantic v2 Settings.
 - **Frontend:** React 18, Vite, Tailwind CSS, Lucide React.
-- **AI & Crawling:** Google Gemini API (`gemini-1.5-flash` / `gemini-2.0-flash`), TinyFish Public Web Scraping API.
+- **AI & Crawling:** Google Gemini API (`gemini-2.5-flash` / `gemini-3.8-flash`), TinyFish Public Web Scraping API.
 - **Testing & Quality:** Pytest, pytest-asyncio, Ruff (linter & formatter).
 
 ---
@@ -98,17 +98,78 @@ npm.cmd run dev
 
 ---
 
-## Docker Deployment
+## Zero-Cost Deployment Architecture (₹0 / month)
 
-Run the complete multi-container production stack with Docker Compose:
+LeadForge is engineered to run at **₹0 recurring monthly cost** within genuine, documented free-tier quotas:
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                        LEADFORGE ₹0/MONTH ZERO-COST ARCHITECTURE                       │
+├──────────────────────────┬─────────────────────────────┬───────────────────────────────┤
+│ Frontend (Client)        │ Backend (API & Pipeline)    │ Database (Persistence)        │
+├──────────────────────────┼─────────────────────────────┼───────────────────────────────┤
+│ Cloudflare Pages         │ Render Free Web Service     │ Neon Serverless PostgreSQL    │
+│ • Vite React 18 SPA      │ • Python 3.12 FastAPI       │ • SQLAlchemy (asyncpg)        │
+│ • Unlimited bandwidth    │ • 750 free instance hrs/mo  │ • 1 GB persistent storage     │
+│ • Global Anycast CDN     │ • Scales to zero after 15m  │ • Never deleted or paused     │
+│ • No credit card needed  │ • No credit card needed     │ • No credit card needed       │
+│ • Monthly Cost: ₹0       │ • Monthly Cost: ₹0          │ • Monthly Cost: ₹0            │
+└──────────────────────────┴─────────────────────────────┴───────────────────────────────┘
+```
+
+### 1. Frontend: Cloudflare Pages (₹0/mo)
+- **Deployment:** Connect GitHub repo to Cloudflare Pages.
+- **Build settings:**
+  - Framework: Vite
+  - Build command: `npm run build`
+  - Output directory: `dist`
+  - Root directory: `frontend`
+- **Environment variables:** Set `VITE_API_URL` to your backend public URL (e.g. `https://leadforge-backend.onrender.com/api`).
+- **Quotas:** Unlimited bandwidth, 500 builds/month, 100% free with no credit card required.
+
+### 2. Backend: Render Free Web Service (₹0/mo)
+- **Deployment:** Deploy via `render.yaml` (`plan: free`) or connect GitHub repo to Render as a Web Service.
+- **Runtime:** Docker (`backend/Dockerfile`).
+- **Health Check:** `/api/health`.
+- **Stateless Operation:** Connects to an external persistent database (Neon Serverless Postgres), eliminating ephemeral storage data loss when the free container sleeps after 15 minutes of inactivity.
+
+### 3. Database: Neon Serverless PostgreSQL (₹0/mo)
+- **Persistence:** 1 GB free persistent storage. Unlike Render's free 30-day trial databases, Neon databases **never expire or auto-delete**.
+- **Connection:** Provide `DATABASE_URL=postgresql+asyncpg://<user>:<password>@<neon-host>/<dbname>` in Render backend environment variables.
+- **Local SQLite Preservation:** Local development and testing continue using local SQLite (`leadforge.db`) with zero external dependencies.
+
+---
+
+## Alternative Deployment Options
+
+### Option A: Local / Virtual Server with Docker Compose
+Run the complete multi-container production stack locally or on an existing server:
 
 ```powershell
 docker-compose up --build -d
 ```
+- Frontend: `http://localhost:80`
+- Backend: `http://localhost:8000/api`
+- Persistence: Stored in named volume `leadforge_sqlite_data` mounted at `/app/backend/data`.
 
-- Frontend App: `http://localhost:80`
-- Backend API: `http://localhost:8000/api`
-- Persistent Volume: SQLite data is stored in the `leadforge_sqlite_data` named volume at `/app/backend/data` to ensure data persists across container restarts.
+### Option B: Render Starter Plan (Optional Paid Convenience)
+If you prefer an all-in-one single-provider container deployment with persistent disk instead of external Postgres:
+- Requires Render **Starter plan** ($7/mo instance + $0.25/GB/mo for 1GB disk).
+- Mounts `/app/backend/data` directly to a Render persistent block disk.
+
+---
+
+## Operational & Verification States
+
+LeadForge clearly distinguishes between 5 operational and deployment states:
+
+| State | Scope | Description & Indicators |
+|---|---|---|
+| **1. Local Mock Mode** | Local / Offline | Default mode (`USE_MOCK_APIS=true`). Serves deterministic fixtures for 10 Indian SaaS prospects. `/api/health` reports `MOCK`. |
+| **2. Live API Configured** | Staging / Prod | `GEMINI_API_KEY` and `TINYFISH_API_KEY` set in environment (`USE_MOCK_APIS=false`). Health reports `LIVE_CONFIGURED` prior to handshake. |
+| **3. Live API Verified** | Real Providers | Successful runtime HTTP 200 ping to Gemini model metadata endpoint. Health reports `LIVE_VERIFIED`. |
+| **4. Deployment Configuration** | Infrastructure | Infrastructure manifests validated (`render.yaml`, `docker-compose.yml`) for zero-cost or volume persistence. |
+| **5. Public Deployment** | Live Cloud | Deployed publicly on Cloudflare Pages + Render Free Web Service + Neon Postgres. |
 
 ---
 
@@ -126,14 +187,17 @@ USE_MOCK_APIS=true
 # Google Gemini API Key (optional for mock mode, required for live AI extraction)
 GEMINI_API_KEY=
 
-# Gemini Model Selection (default: gemini-1.5-flash; also supports gemini-2.0-flash)
-GEMINI_MODEL=gemini-1.5-flash
+# Gemini Model Selection (default: gemini-2.5-flash; also supports gemini-3.8-flash)
+GEMINI_MODEL=gemini-2.5-flash
 
 # TinyFish API Key (optional for mock mode, required for live web crawling)
 TINYFISH_API_KEY=
 
-# Async SQLite Database Connection URL
+# Database Connection URL (Async SQLite locally, or Neon Serverless PostgreSQL in production)
+# Local:
 DATABASE_URL=sqlite+aiosqlite:///backend/data/leadforge.db
+# Production (Neon PostgreSQL with connection pooling):
+# DATABASE_URL=postgresql+asyncpg://user:pass@ep-xyz-pooler.region.aws.neon.tech/leadforge?sslmode=require
 
 # Allowed CORS Origins (supports comma-separated string or JSON list)
 CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
@@ -146,8 +210,8 @@ CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 Run all test suites and quality gates:
 
 ```powershell
-# Run full backend pytest suite (102 tests)
-..\.venv\Scripts\python.exe -m pytest backend/app/tests -v
+# Run full backend pytest suite (110 tests)
+.\.venv\Scripts\python.exe -m pytest backend/app/tests -v
 
 # Run Ruff linter
 ..\.venv\Scripts\python.exe -m ruff check backend

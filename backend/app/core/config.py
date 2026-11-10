@@ -36,7 +36,7 @@ class Settings(BaseSettings):
         description="Google Gemini API Key",
     )
     GEMINI_MODEL: str = Field(
-        default="gemini-1.5-flash",
+        default="gemini-2.5-flash",
         description="Configurable Gemini model ID",
     )
 
@@ -44,6 +44,18 @@ class Settings(BaseSettings):
         default=f"sqlite+aiosqlite:///{DEFAULT_DB_PATH.as_posix()}",
         description="SQLAlchemy async SQLite database connection string",
     )
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def normalize_database_url(cls, v: str) -> str:
+        """Normalize PostgreSQL connection strings to use asyncpg driver."""
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("postgres://"):
+                return v.replace("postgres://", "postgresql+asyncpg://", 1)
+            if v.startswith("postgresql://") and not v.startswith("postgresql+"):
+                return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
 
     CORS_ORIGINS: list[str] | str = Field(
         default=["http://localhost:5173", "http://127.0.0.1:5173"],

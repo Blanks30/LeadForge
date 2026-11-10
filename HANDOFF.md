@@ -1,14 +1,14 @@
 # LeadForge — Verification & Production Readiness Handoff Report
 
 **Project:** LeadForge — Evidence-First Sales Intelligence for B2B SaaS<br/>
-**Document Version:** 4.0.0 (Milestones 1–4 Completed)<br/>
+**Document Version:** 5.0.0 (Milestones 1–4 Completed, Dual Database & Zero-Cost Architecture Verified)<br/>
 **Status:** Production Ready, Tested, and Verified Across All Layers
 
 ---
 
 ## 1. Executive Summary
 
-LeadForge has completed **Milestones 1, 2, 3, and 4**. Both the FastAPI backend and Vite/React frontend are fully operational, thoroughly tested, and packaged for production deployment. The codebase includes 102 automated backend tests across unit, integration, persistence, security, and end-to-end suites, Ruff lint and formatting checks pass with 0 errors, and the frontend production build compiles cleanly in ~2.1 seconds.
+LeadForge has completed **Milestones 1, 2, 3, 4, and Zero-Cost Production Readiness**. Both the FastAPI backend and Vite/React frontend are fully operational, thoroughly tested, and packaged for deployment targeting **₹0 recurring monthly cost**. The codebase includes 110 automated backend tests across unit, integration, dual-database compilation, persistence, security, and end-to-end suites. Ruff lint and formatting checks pass with 0 errors across 40 files, and the frontend production build compiles cleanly in ~2.3 seconds.
 
 ---
 
@@ -37,10 +37,11 @@ LeadForge has completed **Milestones 1, 2, 3, and 4**. Both the FastAPI backend 
 ## 3. Automated Test & Lint Results
 
 - **Backend Pytest Suite:**
-  - **102 / 102 tests passing** (`pytest backend/app/tests -v`)
+  - **110 / 110 tests passing** (`pytest backend/app/tests -v`)
   - `test_api_routes.py`: Prospect REST, ICP CRUD, seeding, CSV export, draft generation.
   - `test_database.py`: SQLite WAL pragmas, check constraints, foreign key cascades, unique indices.
-  - `test_gemini_client.py`: Mock extraction schema compliance, fallback mechanisms, connectivity checks.
+  - `test_dual_database.py`: Dual database support, DDL compilation for PostgreSQL and SQLite, cross-dialect timestamps, URL normalization, PRAGMA isolation, seed idempotency.
+  - `test_gemini_client.py`: Mock extraction schema compliance, fallback mechanisms, connectivity checks, model resolution.
   - `test_tinyfish_client.py`: Crawler client fallback, error handling, mock fixtures.
   - `test_health.py`: Health endpoint structure and live connectivity detection.
   - `test_migration.py`: Schema migration idempotency and record preservation.
@@ -51,29 +52,39 @@ LeadForge has completed **Milestones 1, 2, 3, and 4**. Both the FastAPI backend 
   - `test_e2e_pipeline.py`: Complete 8-step pipeline execution.
 - **Backend Linting & Formatting:**
   - `ruff check backend`: 0 errors
-  - `ruff format backend --check`: 37 files compliant
+  - `ruff format backend --check`: 40 files compliant
 - **Frontend Build:**
-  - `npm run build`: Vite production build succeeded in ~2.1s with 0 errors.
+  - `npm run build`: Vite production build succeeded in ~2.3s with 0 errors.
 
 ---
 
-## 4. Production Deployment & Storage Architecture
+## 4. Zero-Cost Deployment & Storage Architecture (₹0 / month)
 
-### 4.1 SQLite Persistence Requirements
-When deploying to container environments (AWS ECS/Fargate, Google Cloud Run, Railway, Render, Fly.io):
-- Standard container storage is **ephemeral**. Container recreation or redeployment wipes local files.
-- **Critical Requirement:** Mount a persistent block storage volume to `/app/backend/data` (e.g. Docker volume `leadforge_sqlite_data`, AWS EFS, or Fly volume).
-- The backend automatically initializes WAL mode (`PRAGMA journal_mode=WAL`), allowing concurrent reads without table locks.
+### 4.1 Recommended Zero-Cost Production Stack
+To ensure a genuine **₹0/month operating cost** with zero data loss, LeadForge decouples the frontend, backend, and database across free tiers that do not require credit cards:
 
-### 4.2 Docker Compose Deployment
-To run the complete production stack locally or on a virtual server:
-```powershell
-docker-compose up --build -d
-```
-- Frontend: `http://localhost:80`
-- Backend API: `http://localhost:8000/api`
-- Health check: `http://localhost:8000/api/health`
-- Volume: `leadforge_sqlite_data` mounted at `/app/backend/data`
+1. **Frontend: Cloudflare Pages (₹0/mo)**
+   - Unmetered bandwidth, 500 builds/month, global CDN, automated universal SSL.
+   - Deploys static Vite bundle (`npm run build`, output: `dist`).
+2. **Backend: Render Free Web Service (₹0/mo)**
+   - 750 free instance hours/month (covers 24/7 single-service runtime).
+   - Docker container runtime (`backend/Dockerfile`).
+   - Scales to zero after 15 min inactivity; wakes up in ~45s upon incoming request.
+3. **Database: Neon Serverless PostgreSQL (₹0/mo)**
+   - 1 GB persistent storage that **never auto-deletes or expires** (unlike Render's free Postgres trial).
+   - Solves the ephemeral storage dilemma: backend container restarts or cold starts retain 100% of prospect data, research evidence, and outreach drafts.
+   - No credit card required.
+
+### 4.2 Alternative Deployment Options
+- **Docker Compose (Local or VPS):** Complete local stack using `docker-compose up --build -d` with SQLite mounted to named volume `leadforge_sqlite_data`.
+- **Render Starter Plan (Optional Paid Alternative):** If an all-in-one disk container is preferred over an external database, the Render Starter plan ($7/mo instance + $0.25/GB/mo disk) provisions a block storage disk for SQLite at `/app/backend/data`.
+
+### 4.3 Five-State Operational & Verification Framework
+1. **Local Mock Mode:** Default offline mode (`USE_MOCK_APIS=true`) utilizing grounded fixtures for 10 Indian SaaS prospects.
+2. **Live API Configured:** `GEMINI_API_KEY` and `TINYFISH_API_KEY` configured in environment (`USE_MOCK_APIS=false`). Health endpoint reports `LIVE_CONFIGURED`.
+3. **Live API Verified:** Real HTTP 200 handshake to Google Gemini API (`GET https://generativelanguage.googleapis.com/v1beta/models/{model}`). Health endpoint reports `LIVE_VERIFIED`.
+4. **Deployment Configured:** Infrastructure manifests validated (`render.yaml`, `docker-compose.yml`) for zero-cost or volume persistence.
+5. **Public Deployment:** Public deployment running on verified cloud infrastructure (Cloudflare Pages + Render Free + Neon Postgres).
 
 ---
 

@@ -47,7 +47,7 @@ LeadForge ingests untrusted data from arbitrary external websites and processes 
    class Settings(BaseSettings):
        TINYFISH_API_KEY: str = Field(default="", description="TinyFish API Key")
        GEMINI_API_KEY: str = Field(default="", description="Google Gemini API Key")
-       GEMINI_MODEL: str = Field(default="gemini-1.5-flash", description="Configurable Gemini model ID")
+       GEMINI_MODEL: str = Field(default="gemini-2.5-flash", description="Configurable Gemini model ID")
        USE_MOCK_APIS: bool = Field(default=True, description="Enable offline mock providers (default for hackathon/dev)")
        ENVIRONMENT: str = Field(default="development")
 

@@ -1,14 +1,19 @@
 # Database Architecture & Schema Specification
 ## Project: LeadForge — Evidence-First Sales Intelligence
-**Document Version:** 1.0.0  
-**Database Engine:** SQLite 3 (WAL Mode, Foreign Keys Enforced)  
-**ORM / Driver:** SQLAlchemy 2.0 (Async) + aiosqlite
+**Document Version:** 1.1.0<br/>
+**Database Engines:** Dual Database Support:
+- **Local Development & Testing:** SQLite 3 (WAL Mode, Foreign Keys Enforced) via `aiosqlite`
+- **Production Deployment (₹0 Zero-Cost):** Neon Serverless PostgreSQL (Auto-suspended, connection pooling) via `asyncpg`
+**ORM / Driver:** SQLAlchemy 2.0 (Async) + `aiosqlite` / `asyncpg`
 
 ---
 
-## 1. Database Configuration & Pragmas
+## 1. Database Configuration & Dual Dialect Support
 
-SQLite is chosen for its zero-latency local execution, portability, and zero-cost hosting. To ensure high concurrent read performance during research and UI polling, the connection initializes with the following pragmas:
+LeadForge supports dual database dialects seamlessly without code branching:
+
+### Local Development (SQLite):
+SQLite is used locally for zero-latency local execution, portability, and zero-cost offline development. Connection pragmas are attached via SQLAlchemy connect listeners only when running on SQLite:
 
 ```sql
 PRAGMA journal_mode = WAL;          -- Write-Ahead Logging for concurrent readers/writers
@@ -17,6 +22,13 @@ PRAGMA foreign_keys = ON;            -- Enforces relational integrity
 PRAGMA busy_timeout = 5000;          -- 5-second wait on lock contention
 PRAGMA cache_size = -64000;          -- 64MB memory page cache
 ```
+
+### Production Deployment (Neon Serverless PostgreSQL):
+In production on Render Free Web Service, LeadForge connects to a free Neon Serverless PostgreSQL instance (`postgresql+asyncpg://...`):
+- **Serverless Scaling:** Neon scales down to zero compute after 5 minutes of inactivity, consuming 0 CU hours while idle, and wakes within ~500ms.
+- **Connection Pooling:** Connects through Neon's PgBouncer pooled endpoint (`ep-xyz-pooler.region.aws.neon.tech`) to maintain rock-solid connection handling within free limits (up to 10,000 pooled connections).
+- **Persistent Data:** Guarantees full data persistence across Render container sleep and redeploy cycles without ephemeral filesystem loss.
+- **Cross-Dialect DDL:** Timestamps compile via `func.now()`, rendering `CURRENT_TIMESTAMP` on SQLite and `now()` on PostgreSQL. Tables and indexes are cross-compatible across both dialects.
 
 ---
 

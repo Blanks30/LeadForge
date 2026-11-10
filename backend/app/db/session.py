@@ -43,7 +43,9 @@ engine: AsyncEngine = create_async_engine(
     future=True,
 )
 
-configure_sqlite_pragmas(engine.sync_engine)
+# Apply SQLite-specific WAL and PRAGMA settings only for SQLite dialect
+if engine.url.get_backend_name() == "sqlite":
+    configure_sqlite_pragmas(engine.sync_engine)
 
 # Async session factory
 async_session_maker = async_sessionmaker(
@@ -69,26 +71,29 @@ async def init_db(target_engine: AsyncEngine | None = None) -> None:
 
     Executes CREATE TABLE IF NOT EXISTS and index creation defined in Base metadata.
     Ensures target directory exists when using file-based SQLite.
+    Skips SQLite-specific PRAGMA migrations on PostgreSQL.
     """
     eng = target_engine or engine
+    is_sqlite = eng.url.get_backend_name() == "sqlite"
     db_name = eng.url.database
 
-    if db_name and db_name != ":memory:":
+    if is_sqlite and db_name and db_name != ":memory:":
         db_path = Path(db_name)
         db_path.parent.mkdir(parents=True, exist_ok=True)
 
     async with eng.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        # Migrate any missing columns for existing SQLite tables (e.g., generation_source)
-        # Using PRAGMA table_info check avoids transaction errors on nested/savepoint operations
-        result = await conn.execute(text("PRAGMA table_info(outreach_drafts)"))
-        existing_cols = {row[1] for row in result.fetchall()}
-        if "generation_source" not in existing_cols:
-            await conn.execute(
-                text(
-                    "ALTER TABLE outreach_drafts ADD COLUMN generation_source TEXT NOT NULL DEFAULT 'DETERMINISTIC_TEMPLATE'"
+        # Migrate any missing columns for legacy SQLite tables (e.g., generation_source)
+        # Skipped on PostgreSQL as Base.metadata already contains all current columns
+        if is_sqlite:
+            result = await conn.execute(text("PRAGMA table_info(outreach_drafts)"))
+            existing_cols = {row[1] for row in result.fetchall()}
+            if "generation_source" not in existing_cols:
+                await conn.execute(
+                    text(
+                        "ALTER TABLE outreach_drafts ADD COLUMN generation_source TEXT NOT NULL DEFAULT 'DETERMINISTIC_TEMPLATE'"
+                    )
                 )
-            )
 
 
 async def check_db_health(target_engine: AsyncEngine | None = None) -> bool:

@@ -1,7 +1,7 @@
 # AI Agent Architecture & Epistemic Operating Guidelines
 ## Project: LeadForge — Evidence-First Sales Intelligence
-**Document Version:** 1.0.0  
-**AI Engines:** Google Gemini API (`gemini-1.5-flash` / `gemini-2.0-flash`)  
+**Document Version:** 1.1.0<br/>
+**AI Engines:** Google Gemini API (`gemini-2.5-flash` / `gemini-3.8-flash`)<br/>
 **Core Mandate:** Zero Hallucination, Explainable Epistemology, Strict Grounding
 
 ---
@@ -169,7 +169,7 @@ INPUT SCRAPED TEXT:
 ```
 
 > [!NOTE]
-> **Model Configurability & Fallback:** The active Gemini model is driven by the `GEMINI_MODEL` environment variable (default: `gemini-1.5-flash`). If the requested model is unavailable, rate-limited, or when running offline, the system falls back seamlessly to deterministic mock evidence without crashing.
+> **Model Configurability & Fallback:** The active Gemini model is driven by the `GEMINI_MODEL` environment variable (default: `gemini-2.5-flash`, with support for `gemini-3.8-flash`). If the requested model is unavailable, rate-limited, or when running offline, the system falls back seamlessly to deterministic mock evidence without crashing.
 
 ---
 

@@ -65,14 +65,14 @@ class IcpProfile(Base):
         DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(UTC),
-        server_default=func.datetime("now", "utc"),
+        server_default=func.now(),
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
-        server_default=func.datetime("now", "utc"),
+        server_default=func.now(),
     )
 
     # Relationships
@@ -122,14 +122,14 @@ class Prospect(Base):
         DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(UTC),
-        server_default=func.datetime("now", "utc"),
+        server_default=func.now(),
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
-        server_default=func.datetime("now", "utc"),
+        server_default=func.now(),
     )
 
     __table_args__ = (
@@ -208,7 +208,7 @@ class WebSource(Base):
         DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(UTC),
-        server_default=func.datetime("now", "utc"),
+        server_default=func.now(),
     )
 
     __table_args__ = (
@@ -265,7 +265,7 @@ class EvidenceItem(Base):
         DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(UTC),
-        server_default=func.datetime("now", "utc"),
+        server_default=func.now(),
     )
 
     __table_args__ = (
@@ -333,14 +333,14 @@ class OutreachDraft(Base):
         DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(UTC),
-        server_default=func.datetime("now", "utc"),
+        server_default=func.now(),
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
-        server_default=func.datetime("now", "utc"),
+        server_default=func.now(),
     )
 
     __table_args__ = (Index("idx_outreach_prospect", "prospect_id"),)

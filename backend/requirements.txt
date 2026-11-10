@@ -1,8 +1,9 @@
-﻿fastapi
+fastapi
 uvicorn[standard]
 pydantic-settings
 sqlalchemy[asyncio]
 aiosqlite
+asyncpg
 httpx
 pytest
 pytest-asyncio

@@ -56,10 +56,10 @@ graph TD
 | **Frontend Framework** | React 18+ (Vite) | Fast developer feedback, minimal build footprint, component modularity. |
 | **Styling** | Tailwind CSS | Rapid utility-first styling, consistent design token usage, clean badge aesthetics. |
 | **Backend Framework** | Python 3.12 + FastAPI | Native asynchronous execution, automatic OpenAPI schema generation, typed data validation via Pydantic v2. |
-| **Database** | SQLite (WAL Mode) | Zero external server dependencies, embedded local file, ultra-fast for 10–1,000 prospects, ACID compliant. |
-| **ORM / Data Access** | SQLAlchemy 2.0 (Async) / aiosqlite | Robust schema declaration, parameterized queries preventing SQL injection, async support. |
-| **Web Scraping** | TinyFish API | Handles dynamic rendering, bot mitigation, and extracts clean markdown/text from company websites. |
-| **LLM & Analysis** | Gemini API (`gemini-1.5-flash` or `gemini-2.0-flash`) | High speed, cost efficiency, 1M+ context window, native support for JSON schema-constrained output. |
+| **Database** | SQLite (Local) / Neon PostgreSQL (Production) | Dual database support: SQLite WAL locally for zero-latency offline development; Neon Serverless PostgreSQL in production (₹0/mo, 1GB storage, PgBouncer pooling). |
+| **ORM / Data Access** | SQLAlchemy 2.0 (Async) / aiosqlite / asyncpg | Robust schema declaration, parameterized queries, dialect-aware initialization (SQLite PRAGMAs vs Postgres pooling). |
+| **Web Scraping** | TinyFish API | Handles dynamic rendering, bot mitigation, and extracts clean markdown/text. Free tier provides recurring 1,000 URLs/day via TinyFetch. |
+| **LLM & Analysis** | Gemini API (`gemini-2.5-flash` / `gemini-3.8-flash`) | Fast, cost-efficient, 1M+ context window, native support for JSON schema-constrained output. Generous free tier via Google AI Studio. |
 | **Version Control** | Git | Standard version control, strict `.gitignore` to prevent secret leakage. |
 
 ---
@@ -219,7 +219,7 @@ sequenceDiagram
 
 ### 6.2 Gemini API Client Adapter
 * **Role:** Analyzes crawled text, extracts epistemic assertions, verifies citations, and composes cold outreach.
-* **Model Configuration:** Configured via the `GEMINI_MODEL` environment variable (defaults to `gemini-1.5-flash`, with support for `gemini-2.0-flash` or alternative tiers). Operates with `temperature=0.1` (low temperature enforces deterministic adherence to facts).
+* **Model Configuration:** Configured via the `GEMINI_MODEL` environment variable (defaults to `gemini-2.5-flash`, with support for `gemini-3.8-flash`, `gemini-3.5-flash-lite`, `gemini-2.5-pro`, and legacy models). Operates with `temperature=0.1` (low temperature enforces deterministic adherence to facts).
 * **Schema Enforcement:** Strict Pydantic model passed as `response_schema` to guarantee valid JSON formatting.
 * **Mock Provider Mode:** Includes pre-computed structured responses for the 10 target prospects when offline or if quota is exhausted.
 
@@ -233,17 +233,26 @@ sequenceDiagram
 
 ---
 
-## 8. Deployment & Persistence Architecture
+## 8. Deployment & Zero-Cost Architecture (₹0 Recurring Cost)
 
-### 8.1 SQLite Persistence on Ephemeral Platforms
-* **Limitation:** Standard container hosting (AWS Fargate, Google Cloud Run, Render, Railway, Fly.io, Heroku) uses an ephemeral root filesystem. Any container restart or redeployment resets local disk storage, wiping SQLite tables.
-* **Production Persistence Requirement:** When deploying to production containers, a persistent block volume must be attached and mounted at `/app/backend/data` (e.g., Docker volume `leadforge_sqlite_data`, AWS ECS EFS mount, or Fly.io persistent storage volume).
-* **WAL Mode & Concurrency:** SQLite is initialized with `PRAGMA journal_mode=WAL`, `PRAGMA synchronous=NORMAL`, and `PRAGMA busy_timeout=5000` to ensure safe concurrent reads during web crawling and analysis.
+### 8.1 Zero-Cost Production Topology
+* **Frontend: Cloudflare Pages (₹0/mo)**
+  * Global Anycast CDN, unlimited bandwidth, 500 builds/month, zero cold starts, custom domain with automatic SSL.
+  * Environment variable `VITE_API_URL` points to backend on Render.
+* **Backend: Render Free Web Service (₹0/mo)**
+  * Python 3.12 Docker service (`leadforge-backend`).
+  * 750 free instance hours/month (covers 1 continuous web service 24/7 without exceeding quota).
+  * Automatically spins down to 0 after 15 minutes of inactivity; wakes up on incoming HTTP traffic (~45-60s cold start).
+  * No credit card required.
+* **Database: Neon Serverless PostgreSQL (₹0/mo)**
+  * 1 GB persistent storage, 100 Compute Unit (CU) hours/month, unthrottled PgBouncer connection pooling.
+  * Solves ephemeral filesystem limitations without paid Render persistent disks ($7/month).
+  * Auto-suspends after 5 minutes of inactivity (0 compute usage while idle); wakes in ~500ms on first query.
+  * No credit card required; data is never deleted due to inactivity.
 
-### 8.2 Production Container Topology
-* **Backend:** Python 3.12-slim base image running `uvicorn app.main:app --host 0.0.0.0 --port 8000`. Exposes `/api/health` with automated Docker health checks.
-* **Frontend:** Multi-stage build (`node:20-alpine` build -> `nginx:alpine` static hosting). Reverse-proxies `/api/` traffic internally to the backend service.
-* **Orchestration:** `docker-compose.yml` connects backend and frontend on a private bridge network with named volume persistence for SQLite.
+### 8.2 Local & Container Development Topology
+* **Local Database:** SQLite with Write-Ahead Logging (`leadforge.db`), initialized via `aiosqlite`.
+* **Docker Compose:** `docker-compose.yml` mounts named volume `leadforge_sqlite_data` to `/app/backend/data`, preserving data across container restarts.
 
 ### 8.3 3-Tier Health Check & Status Model
 The `/api/health` endpoint dynamically inspects database connectivity and live API credentials, returning:
